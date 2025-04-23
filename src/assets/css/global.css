@@ -1,0 +1,62 @@
+/* Global CSS Reset */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* Basic styling for html and body */
+html, body {
+  margin: 0 !important;
+  padding: 0 !important;
+  background-color: #000 !important;
+  color: #fff !important;
+  min-height: 100vh !important;
+  width: 100% !important;
+}
+
+/* Special class for fixed pages like Vocabulary */
+.fixed-page {
+  overflow: hidden !important;
+  height: 100% !important;
+  width: 100% !important;
+  position: fixed !important;
+  touch-action: none;
+}
+
+/* Global CSS to prevent unwanted scrolling */
+html,
+body {
+  height: 100%;
+  overflow: hidden !important;
+  position: fixed;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+* {
+  -webkit-tap-highlight-color: transparent;
+}
+
+.no-scroll {
+  overflow: hidden !important;
+  overscroll-behavior: none;
+  touch-action: none;
+}
+
+.scroll-y-only {
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior-x: none;
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+} 
