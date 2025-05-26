@@ -1,6 +1,6 @@
 <template>
   <div class="essay-page">
-      <div class="background-effects">
+      <div class="background-effects h-full">
           <div class="gradient-orb top-left"></div>
           <div class="gradient-orb bottom-right"></div>
           <div class="grid-overlay"></div>
@@ -9,12 +9,12 @@
       <!--Essay content-->
       <div class="essay-container">
           <!-- 返回按钮 -->
-          <div class="back-button-container">
+          <!-- <div class="back-button-container">
               <button class="back-button" @click="$router.push('/home/reading')">
                   返回
               </button>
           </div>
-          
+           -->
           <!-- Content Area -->
           <div class="content-area">
               <!-- Essay Content with Split View -->
@@ -46,6 +46,7 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { getArticleDetail, submitArticleAnswers } from '@/api/article';
 
 // 导入拆分后的组件
 import ArticleSection from '../components/essay/ArticleSection.vue';
@@ -55,6 +56,8 @@ import QuestionsSection from '../components/essay/QuestionsSection.vue';
 const router = useRouter();
 const route = useRoute();
 const essayId = computed(() => route.params.id || '未知文章');
+const isLoading = ref(false);
+const apiError = ref(null);
 
 // All answers data
 const allAnswers = ref({});
@@ -66,10 +69,58 @@ const handleAnswerUpdate = ({ type, answers }) => {
 };
 
 // 提交答案
-const submitAnswers = () => {
-  console.log('提交所有答案:', allAnswers.value);
-  // 实际项目中应将答案提交到后端
-  // saveUserAnswers();
+const submitAnswers = async () => {
+  try {
+    console.log('提交所有答案:', allAnswers.value);
+    
+    // 将答案格式转换为API需要的格式
+    const formattedAnswers = formatAnswersForSubmission(allAnswers.value);
+    
+    // 从essayId中提取文章ID（如果是从课程生成的文章，essayId可能包含前缀）
+    const articleId = extractArticleId(essayId.value);
+    
+    // 调用API提交答案
+    const response = await submitArticleAnswers(articleId, formattedAnswers);
+    
+    if (response.code === 0) {
+      // 提交成功，显示结果或跳转到结果页面
+      alert('答案提交成功！得分：' + response.data.score);
+    } else {
+      // 提交失败，显示错误信息
+      alert('提交失败：' + response.msg);
+    }
+  } catch (error) {
+    console.error('提交答案时出错:', error);
+    alert('提交答案时发生错误，请稍后重试');
+  }
+};
+
+// 将答案转换为API需要的格式
+const formatAnswersForSubmission = (answers) => {
+  const result = [];
+  
+  // 遍历所有问题类型
+  Object.entries(answers).forEach(([type, typeAnswers]) => {
+    // 遍历该类型下的所有问题答案
+    Object.entries(typeAnswers).forEach(([questionId, answer]) => {
+      result.push({
+        question_id: questionId,
+        answer: answer,
+        type: type
+      });
+    });
+  });
+  
+  return result;
+};
+
+// 从essayId中提取文章ID
+const extractArticleId = (id) => {
+  // 如果ID格式为 "essay-2-1"，提取数字部分
+  if (id.startsWith('essay-')) {
+    return id.substring(6); // 返回 "2-1" 或其他ID
+  }
+  return id; // 如果没有前缀，直接返回
 };
 
 // 用于调整左右面板宽度的变量和函数
@@ -125,7 +176,7 @@ const stopResize = () => {
   window.removeEventListener('touchend', stopResize);
 };
 
-// 模拟文章和问题数据
+// 模拟文章和问题数据（作为备用）
 const essayData = ref({
   title: "The Future of Artificial Intelligence",
   paragraphs: [
@@ -266,6 +317,159 @@ const essayData = ref({
   ]
 });
 
+// 从API获取文章数据
+const fetchEssayData = async () => {
+  isLoading.value = true;
+  apiError.value = null;
+  
+  try {
+    // 从essayId中提取文章ID
+    const articleId = extractArticleId(essayId.value);
+    
+    // 调用API获取文章详情
+    const response = await getArticleDetail(articleId);
+    
+    if (response.code === 0 && response.data) {
+      // 将API返回的数据转换为组件需要的格式
+      const apiData = response.data;
+      
+      // 更新文章数据
+      essayData.value = {
+        title: apiData.title,
+        paragraphs: apiData.content.split('\n\n'), // 假设段落由两个换行符分隔
+        questionModules: formatQuestionsFromApi(apiData.questions)
+      };
+      
+      console.log('成功获取文章数据:', essayData.value);
+    } else {
+      // API请求成功但返回错误
+      console.error('获取文章失败:', response.msg || '未知错误');
+      apiError.value = response.msg || '获取文章失败，请稍后重试';
+      // 保留模板数据作为备用
+    }
+  } catch (error) {
+    // API请求失败
+    console.error('获取文章时出错:', error);
+    apiError.value = '获取文章时发生错误，请稍后重试';
+    // 保留模板数据作为备用
+  } finally {
+    isLoading.value = false;
+    
+    // 初始化答案对象结构
+    essayData.value.questionModules.forEach(module => {
+      allAnswers.value[module.type] = {};
+    });
+  }
+};
+
+// 将API返回的问题数据转换为组件需要的格式
+const formatQuestionsFromApi = (apiQuestions) => {
+  // 按问题类型分组
+  const questionsByType = {};
+  
+  apiQuestions.forEach(q => {
+    if (!questionsByType[q.type]) {
+      questionsByType[q.type] = [];
+    }
+    questionsByType[q.type].push(q);
+  });
+  
+  // 转换为组件需要的格式
+  const modules = [];
+  
+  // 处理判断题
+  if (questionsByType['true-false']) {
+    modules.push({
+      type: 'true-false',
+      data: {
+        questions: questionsByType['true-false'].map(q => ({
+          id: q.id,
+          text: q.content
+        }))
+      }
+    });
+  }
+  
+  // 处理单选题
+  if (questionsByType['single-choice']) {
+    modules.push({
+      type: 'single-choice',
+      data: {
+        questions: questionsByType['single-choice'].map(q => ({
+          id: q.id,
+          text: q.content,
+          options: q.options
+        }))
+      }
+    });
+  }
+  
+  // 处理多选题
+  if (questionsByType['multiple-choice']) {
+    modules.push({
+      type: 'multiple-choice',
+      data: {
+        questions: questionsByType['multiple-choice'].map(q => ({
+          id: q.id,
+          text: q.content,
+          options: q.options
+        }))
+      }
+    });
+  }
+  
+  // 处理填空题
+  if (questionsByType['fill-in-blanks']) {
+    modules.push({
+      type: 'fill-in-blanks',
+      data: {
+        questions: questionsByType['fill-in-blanks'].map(q => ({
+          id: q.id,
+          text: q.content,
+          maxWords: q.max_words || 5
+        }))
+      }
+    });
+  }
+  
+  // 处理匹配题
+  if (questionsByType['matching']) {
+    const matchingQuestions = questionsByType['matching'];
+    if (matchingQuestions.length > 0) {
+      modules.push({
+        type: 'matching',
+        data: {
+          questions: matchingQuestions.map(q => ({
+            id: q.id,
+            text: q.content
+          })),
+          sections: matchingQuestions[0].options || []
+        }
+      });
+    }
+  }
+  
+  // 处理段落标题匹配题
+  if (questionsByType['paragraph-heading']) {
+    const paragraphQuestions = questionsByType['paragraph-heading'];
+    if (paragraphQuestions.length > 0) {
+      modules.push({
+        type: 'paragraph-heading',
+        data: {
+          paragraphs: paragraphQuestions.map((q, index) => ({
+            id: q.id,
+            label: String.fromCharCode(65 + index), // A, B, C...
+            preview: q.content.substring(0, 50) + '...'
+          })),
+          headings: paragraphQuestions[0].options || []
+        }
+      });
+    }
+  }
+  
+  return modules;
+};
+
 // 清理事件监听器
 onBeforeUnmount(() => {
   window.removeEventListener('mousemove', handleResize);
@@ -277,12 +481,7 @@ onBeforeUnmount(() => {
 // 页面加载时初始化
 onMounted(() => {
   // 从后端加载文章和问题数据
-  // fetchEssayData();
-
-  // Initialize answers object structure
-  essayData.value.questionModules.forEach(module => {
-    allAnswers.value[module.type] = {};
-  });
+  fetchEssayData();
 });
 </script>
 
@@ -291,7 +490,6 @@ onMounted(() => {
   .essay-page {
       position: relative;
       width: 100%;
-      min-height: 100vh;
       background-color: #121212;
       color: white;
       overflow: hidden;
@@ -344,20 +542,19 @@ onMounted(() => {
   .essay-container {
       position: relative;
       z-index: 1;
-      padding: 1.5rem;
+      padding: 1rem;
       overflow: hidden;
       touch-action: pan-y;
       -webkit-overflow-scrolling: touch;
-      max-width: 1400px;
       margin: 0 auto;
-      height: 100vh;
+      height: 100%;
       display: flex;
       flex-direction: column;
   }
   
   /* 返回按钮 */
   .back-button-container {
-      margin-bottom: 1.5rem;
+      margin-bottom: 0.5rem;
   }
   
   .back-button {

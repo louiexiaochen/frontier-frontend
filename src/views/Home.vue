@@ -7,7 +7,6 @@
       </div>
       <!--Left sidebar-->
       <div class="left-sidebar" :class="{ 'sidebar-visible': sidebarVisible }">
-          
           <div class="sidebar-icon">
              <home-icon class="icon" @click="$router.push('/')" />
              
@@ -22,8 +21,14 @@
              <setting-icon class="icon" @click="$router.push('/home/settings')" />
           </div>
 
-          <div class="profile">
-              <span class="profile-text">头像</span>
+          <div class="profile flex-col" @click="navigateToProfile">
+              <div class="avatar-circle">
+                <div class="w-full h-full bg-blue-500 flex items-center justify-center text-white">
+                  {{ userStore.username ? userStore.username.charAt(0).toUpperCase() : 'U' }}
+                </div>
+                <!-- <div class="avatar-status"></div> -->
+              </div>
+              <span class="profile-text">{{ $t('home.sidebar.profile') }}</span>
           </div>
       </div>
 
@@ -37,34 +42,39 @@
       <!--Main content-->
       <div class="main-content" @click="handleContentClick">
           <!--Nav tabs-->
-          <div class="nav-tabs">
-              <div class="sidebar-toggle-wrapper">
+          <div class="flex flex-row w-full border-b border-[#303336]">
+              <div class="sidebar-toggle-wrapper w-[40px] ml-[5vw]">
                   <SidebarToggle 
                       :isActive="sidebarVisible" 
                       @click="toggleSidebar" 
                   />
               </div>
-              <div v-for="(tab, index) in tabs" :key="index" 
-                   class="tab" 
-                   :class="{'active': isActiveTab(tab.name)}"
-                   @click="navigateToTab(tab.name)">
-                  <span>{{ tab.name }}</span>
+              <div class="nav-tabs flex-1 overflow-x-auto">
+                  <div v-for="(tab, index) in tabs" :key="index" 
+                       class="tab" 
+                       :class="{'active': isActiveTab(tab.name)}"
+                       @click="navigateToTab(tab.name)">
+                      <span>{{ tab.name }}</span>
+                  </div>
               </div>
           </div>
 
           <!-- 子路由内容区域 -->
           <router-view />
+          
       </div>
       
       <!-- Right Sidebar (Empty) -->
-      <!-- <div class="sidebar right-sidebar">
-      </div> -->
+      <div class="right-sidebar" :class="{ 'sidebar-visible': sidebarVisible }">
+
+      </div>
   </div>  
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+import { ref, computed, provide } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
+import { useUserStore } from '@/stores/user';
 import {
 HomeIcon,
 AiFriendIcon,
@@ -77,6 +87,7 @@ import SidebarToggle from '../components/icons/SidebarToggle.vue';
 
 const router = useRouter();
 const route = useRoute();
+const userStore = useUserStore();
 
 const tabs = ref([
 { name: 'Reading', path: '/home/reading' },
@@ -99,8 +110,16 @@ if (tab) {
 }
 };
 
+// 导航到个人资料页面
+const navigateToProfile = () => {
+  router.push('/home/profile');
+};
+
 // 侧边栏可见性状态
-const sidebarVisible = ref(false);
+const sidebarVisible = ref(true); // 默认显示侧边栏
+
+// 提供侧边栏状态给子组件
+provide('sidebarVisible', sidebarVisible);
 
 // 切换侧边栏函数
 const toggleSidebar = () => {
@@ -205,46 +224,31 @@ const handleContentClick = (event) => {
           transform: translate(5%, 5%);
       }
   }
-
+  .right-sidebar {
+    width: 6rem;
+    border-left: 2px solid #303336;
+  }
   .left-sidebar {
-      width: 7rem;
+      width: 6rem;
       display: flex;
       flex-direction: column;
       align-items: center;
       padding: 0;
       border-right: 1px solid #303336;
       height: 100vh;
-      position: fixed;
-      top: 0;
-      left: -7rem; /* 初始隐藏 */
+      position: relative; /* 修改为相对定位 */
       z-index: 100;
       background-color: rgba(0, 0, 0, 0.8);
       backdrop-filter: blur(5px);
       overflow: hidden;
       touch-action: none;
       flex-shrink: 0;
-      transition: left 0.3s ease;
+      transition: width 0.3s ease; /* 修改过渡效果 */
   }
 
-  .sidebar-visible {
-      left: 0; /* 显示时的位置 */
-  }
-  
-  .sidebar-overlay {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-color: rgba(0, 0, 0, 0.5);
-      z-index: 90;
-      display: block;
-  }
-  
-  .sidebar-toggle-wrapper {
-      display: flex;
-      align-items: center;
-      margin-right: 1rem;
+  .left-sidebar:not(.sidebar-visible) {
+      width: 0; /* 隐藏时宽度为0 */
+      border-right: none;
   }
   
   .right-sidebar {
@@ -259,6 +263,25 @@ const handleContentClick = (event) => {
       overflow: hidden;
       touch-action: none;
       flex-shrink: 0;
+      transition: width 0.3s ease; /* 添加过渡效果 */
+  }
+  
+  .right-sidebar:not(.sidebar-visible) {
+      width: 0; /* 隐藏时宽度为0 */
+      border-left: none;
+  }
+  
+  .sidebar-toggle-wrapper {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+  }
+  
+  
+  @media (max-width: 768px) {
+      .mobile-only {
+          display: flex;
+      }
   }
 
   @media (max-width: 1024px) {
@@ -312,6 +335,38 @@ const handleContentClick = (event) => {
       position: relative;
       flex-shrink: 0;
       touch-action: none;
+      cursor: pointer;
+  }
+
+  .avatar-circle {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      overflow: hidden;
+      position: relative;
+      border: 2px solid rgba(255, 255, 255, 0.2);
+      transition: border-color 0.3s ease;
+  }
+
+  .profile:hover .avatar-circle {
+      border-color: rgba(74, 153, 233, 0.6);
+  }
+
+  .avatar-image {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+  }
+
+  .avatar-status {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background-color: #4CAF50;
+      border: 2px solid rgba(0, 0, 0, 0.8);
   }
 
   .profile-text {
@@ -319,6 +374,11 @@ const handleContentClick = (event) => {
       font-weight: 500;
       opacity: 0.7;
       padding: 0.75rem;
+      transition: opacity 0.3s ease;
+  }
+
+  .profile:hover .profile-text {
+      opacity: 1;
   }
 
   .main-content {
@@ -332,20 +392,23 @@ const handleContentClick = (event) => {
   }
 
   .nav-tabs {
-      display: flex;
-      padding: 1.5rem 2rem 0;
-      gap: 2rem;
-      border-bottom: 1px solid #303336;
-      margin-bottom: 1.5rem;
-      align-items: center;
+    display: flex;
+    padding: .8rem;
+    gap: 2rem;
+    align-items: center;
+    justify-content: space-around;
   }
 
   .tab {
-      padding: 0.5rem 0;
+      padding: 0.3rem 0;
       position: relative;
       cursor: pointer;
       opacity: 0.7;
       transition: opacity 0.3s ease;
+      & > span {
+        font-size: large;
+        font-weight: bolder;
+      }
   }
 
   .tab:hover {
@@ -363,6 +426,6 @@ const handleContentClick = (event) => {
       left: 0;
       width: 100%;
       height: 2px;
-      background-color: white;
+      background-color: #4A99E9;
   }
 </style>

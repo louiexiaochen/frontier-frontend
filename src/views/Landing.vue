@@ -17,28 +17,56 @@
         </div>
 
         <nav class="flex items-center justify-around w-full lg:w-[40%]">
-          <a href="#" class="text-white no-underline px-4 py-2 text-[clamp(0.9rem,1vw,1.5rem)] hover:bg-gray-800 hover:rounded">{{ $t('landing.features') }}</a>
-          <a href="#" class="text-white no-underline px-4 py-2 text-[clamp(0.9rem,1vw,1.5rem)] hover:bg-gray-800 hover:rounded">{{ $t('landing.pricing') }}</a>
+          <router-link to="/features" class="text-white no-underline px-4 py-2 text-[clamp(0.9rem,1vw,1.5rem)] hover:bg-gray-800 hover:rounded">{{ $t('landing.features') }}</router-link>
+          <router-link to="/pricing" class="text-white no-underline px-4 py-2 text-[clamp(0.9rem,1vw,1.5rem)] hover:bg-gray-800 hover:rounded">{{ $t('landing.pricing') }}</router-link>
           <a href="#" class="text-white no-underline px-4 py-2 text-[clamp(0.9rem,1vw,1.5rem)] hover:bg-gray-800 hover:rounded">{{ $t('landing.community') }}</a>
           <a href="#" class="text-white no-underline px-4 py-2 text-[clamp(0.9rem,1vw,1.5rem)] hover:bg-gray-800 hover:rounded">{{ $t('landing.jobs') }}</a>
         </nav>
 
         <div class="flex items-center gap-[clamp(0.5rem,1vw,1.5rem)]">
-          <!-- 添加语言切换组件 -->
-          <LanguageSwitcher />
+          <!-- 未登录状态显示登录/注册按钮 -->
+          <template v-if="!userStore.isAuthenticated">
+            <button 
+              @click="showLoginModal" 
+              class="py-[clamp(0.4rem,0.7vw,1rem)] px-[clamp(0.8rem,1.5vw,2rem)] rounded-md bg-black border border-gray-800 text-white transition-colors duration-200 cursor-pointer text-[clamp(0.9rem,1vw,1.3rem)] hover:bg-gray-800"
+            >
+              {{ $t('login.title') }}
+            </button>
+            <button 
+              @click="showSignupModal" 
+              class="py-[clamp(0.4rem,0.7vw,1rem)] px-[clamp(0.8rem,1.5vw,2rem)] rounded-md bg-white text-black border-none transition-opacity duration-200 cursor-pointer text-[clamp(0.9rem,1vw,1.3rem)] hover:opacity-90"
+            >
+              {{ $t('signup.title') }}
+            </button>
+          </template>
           
-          <button 
-            @click="showLoginModal" 
-            class="py-[clamp(0.4rem,0.7vw,1rem)] px-[clamp(0.8rem,1.5vw,2rem)] rounded-md bg-black border border-gray-800 text-white transition-colors duration-200 cursor-pointer text-[clamp(0.9rem,1vw,1.3rem)] hover:bg-gray-800"
-          >
-            {{ $t('login.title') }}
-          </button>
-          <button 
-            @click="showSignupModal" 
-            class="py-[clamp(0.4rem,0.7vw,1rem)] px-[clamp(0.8rem,1.5vw,2rem)] rounded-md bg-white text-black border-none transition-opacity duration-200 cursor-pointer text-[clamp(0.9rem,1vw,1.3rem)] hover:opacity-90"
-          >
-            {{ $t('signup.title') }}
-          </button>
+          <!-- 已登录状态显示用户信息 -->
+          <template v-else>
+            <div class="relative" ref="userMenuContainer">
+              <div 
+                class="flex items-center gap-2 cursor-pointer"
+                @click="toggleUserMenu"
+              >
+                <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center text-white">
+                  {{ userStore.username ? userStore.username.charAt(0).toUpperCase() : 'U' }}
+                </div>
+                <span class="text-white">{{ userStore.username }}</span>
+              </div>
+              
+              <!-- 下拉菜单 - 使用v-show而不是CSS隐藏 -->
+              <div 
+                v-show="userMenuVisible" 
+                class="absolute top-full right-0 mt-2 w-48 bg-gray-800 rounded-md shadow-lg py-1 z-50"
+              >
+                <router-link to="/home/profile" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">个人资料</router-link>
+                <router-link to="/settings" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">设置</router-link>
+                <a href="#" @click.prevent="handleLogout" class="block px-4 py-2 text-sm text-white hover:bg-gray-700">退出登录</a>
+              </div>
+            </div>
+          </template>
+          
+          <!-- 添加语言切换组件 - 移到最右侧 -->
+          <LanguageSwitcher />
         </div>
       </header>
 
@@ -76,19 +104,28 @@
 </template>
 
 <script setup>
-import { onMounted, ref } from 'vue';
+import { onMounted, ref, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Logo from '../components/icons/Logo.vue';
 import LoginModal from '../components/LoginModal.vue';
 import SignupModal from '../components/SignupModal.vue';
 import LanguageSwitcher from '../components/utils/LanguageSwitcher.vue';
+import { useUserStore } from '@/stores/user';
+import message from '@/utils/message';
 
 // 使用 i18n
 const { t } = useI18n();
 
+// 使用用户store
+const userStore = useUserStore();
+
 // 模态窗口可见性状态
 const loginModalVisible = ref(false);
 const signupModalVisible = ref(false);
+
+// 用户菜单状态
+const userMenuVisible = ref(false);
+const userMenuContainer = ref(null);
 
 // 显示登录模态窗口
 const showLoginModal = () => {
@@ -120,11 +157,39 @@ const switchToLogin = () => {
   loginModalVisible.value = true;
 };
 
+// 切换用户菜单显示状态
+const toggleUserMenu = () => {
+  userMenuVisible.value = !userMenuVisible.value;
+};
+
+// 点击外部关闭用户菜单
+const handleClickOutside = (event) => {
+  if (userMenuContainer.value && !userMenuContainer.value.contains(event.target)) {
+    userMenuVisible.value = false;
+  }
+};
+
+// 处理退出登录
+const handleLogout = async () => {
+  await userStore.logout();
+  message.success('退出登录成功');
+  window.location.reload();
+};
+
 onMounted(() => {
-  // 不再设置overflow为auto
-  // document.documentElement.style.overflow = 'auto'
-  // document.body.style.overflow = 'auto'
-})
+  // 初始化用户信息
+  if (userStore.token && !userStore.user) {
+    userStore.loadUser();
+  }
+  
+  // 添加点击外部关闭菜单的事件监听
+  document.addEventListener('click', handleClickOutside);
+});
+
+onBeforeUnmount(() => {
+  // 移除事件监听
+  document.removeEventListener('click', handleClickOutside);
+});
 </script>
 
 <style>

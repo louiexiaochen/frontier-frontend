@@ -26,7 +26,27 @@ onMounted(() => {
 :root {
   font-size: 16px;
 }
+/* 定义滚动条的宽度 */
+::-webkit-scrollbar {
+    width: 8px; /* 滚动条的宽度 */
+}
 
+/* 定义滚动条的轨道（背景） */
+::-webkit-scrollbar-track {
+    background: none; /* 轨道背景颜色 */
+    border-radius: 8px; /* 轨道圆角 */
+}
+
+/* 定义滚动条的滑块 */
+::-webkit-scrollbar-thumb {
+    background: #aaa; /* 滑块颜色 */
+    border-radius: 10px; /* 滑块圆角 */
+}
+
+/* 定义滚动条滑块在悬停时的样式 */
+::-webkit-scrollbar-thumb:hover {
+    background: #1a1a1a; /* 悬停时滑块颜色 */
+}
 /* 为不同尺寸显示器设置不同的根字体大小 */
 /* 15寸显示器 - 约1400×900像素 */
 @media screen and (min-width: 1366px) and (max-width: 1440px) {
@@ -84,7 +104,9 @@ html, body {
   color: #fff !important;
   min-height: 100vh !important;
   width: 100% !important;
-  /* 不再设置overflow-x */
-  /* overflow-x: hidden !important; */
+  /* 允许正常滚动 */
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  position: relative;
 }
 </style>

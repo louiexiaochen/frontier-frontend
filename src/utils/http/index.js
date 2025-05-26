@@ -9,6 +9,7 @@ import {
   removePendingRequest, 
   isCancel 
 } from './cancelRequest';
+import message from '@/utils/message';
 
 // 创建axios实例
 const http = axios.create({
@@ -43,18 +44,30 @@ http.interceptors.response.use(
   (response) => {
     // 请求完成后，从pending列表中移除
     removePendingRequest(response.config);
+    console.log("响应拦截", response.data);
     
     // 根据后端约定的数据结构处理响应
     const res = response.data;
+    if (res.msg && !res.message) {
+      res.message = res.msg;
+    }
+    // 检查响应是否成功 - 根据success字段和code字段判断
+    // 成功情况：success为true 且 code以2开头（如200, 201等）
+    if (res.code !=0 || res.success === false || (res.code && !String(res.code).startsWith('2') && res.code != 0)) {
+      // 使用message组件显示错误信息
+      message.error(res.message || '请求失败');
+      // 返回完整响应，让业务代码决定如何处理
+      return res;
+    }
+    // 如果有msg但没有message字段，使用msg字段
     
-    // 假设后端返回的数据结构为 { code: number, data: any, message: string }
-    if (res.code !== 200 && res.code !== 0) {
-      // 处理业务错误
-      console.error(`请求错误: ${res.message || '未知错误'}`);
-      return Promise.reject(new Error(res.message || '未知错误'));
+    // 成功情况下，可以显示成功消息（如果需要）
+    if (res.message && response.config.showSuccessMessage) {
+      message.success(res.message);
     }
     
-    return res.data;
+    // 返回完整响应
+    return res;
   },
   (error) => {
     // 如果是取消的请求，不做处理
@@ -73,32 +86,48 @@ http.interceptors.response.use(
       }
       
       // 处理常见HTTP错误
+      let errorMsg = '';
       switch (status) {
         case 401:
-          // 未授权，清除token并跳转到登录页
-          console.error('未授权，请重新登录');
+          errorMsg = '未授权，请重新登录';
           // 这里可以调用清除token的方法并跳转到登录页
           // removeToken();
           // router.push('/login');
           break;
         case 403:
-          console.error('拒绝访问');
+          errorMsg = '拒绝访问';
           break;
         case 404:
-          console.error('请求的资源不存在');
+          errorMsg = '请求的资源不存在';
           break;
         case 500:
-          console.error('服务器错误');
+          errorMsg = '服务器错误';
           break;
         default:
-          console.error(`请求错误: ${status}`);
+          errorMsg = `请求错误: ${status}`;
       }
+      
+      // 显示错误消息
+      if (error.response.data && error.response.data.message) {
+        message.error(error.response.data.message);
+      } else {
+        message.error(errorMsg);
+      }
+      
+      console.log("响应拦截错误", error.response);
+      
+      // 返回错误响应数据，让业务代码决定如何处理
+      return error.response.data;
     } else if (error.request) {
       // 请求已发出，但没有收到响应
-      console.error('网络错误，请检查您的网络连接');
+      const errorMsg = '网络错误，请检查您的网络连接';
+      message.error(errorMsg);
+      console.error(errorMsg);
     } else {
       // 请求配置有误
-      console.error('请求配置错误:', error.message);
+      const errorMsg = `请求配置错误: ${error.message}`;
+      message.error(errorMsg);
+      console.error(errorMsg);
     }
     
     return Promise.reject(error);

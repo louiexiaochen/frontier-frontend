@@ -326,7 +326,6 @@ essayData.value.questionModules.forEach(module => {
   .essay-page {
       position: relative;
       width: 100%;
-      min-height: 100vh;
       background-color: #121212;
       color: white;
       overflow: hidden;
@@ -385,14 +384,8 @@ essayData.value.questionModules.forEach(module => {
       -webkit-overflow-scrolling: touch;
       max-width: 1400px;
       margin: 0 auto;
-      height: 100vh;
       display: flex;
       flex-direction: column;
-  }
-  
-  /* 返回按钮 */
-  .back-button-container {
-      margin-bottom: 1.5rem;
   }
   
   .back-button {
@@ -420,7 +413,6 @@ essayData.value.questionModules.forEach(module => {
       display: flex;
       flex-direction: column;
       width: 100%;
-      height: calc(100vh - 5rem);
       overflow: hidden;
   }
 

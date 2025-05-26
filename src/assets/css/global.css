@@ -13,6 +13,12 @@ html, body {
   color: #fff !important;
   min-height: 100vh !important;
   width: 100% !important;
+  /* 允许正常滚动 */
+  height: 100%;
+  overflow-x: hidden !important;
+  overflow-y: auto !important;
+  position: relative;
+  overscroll-behavior: none;
 }
 
 /* Special class for fixed pages like Vocabulary */
@@ -24,15 +30,15 @@ html, body {
   touch-action: none;
 }
 
-/* Global CSS to prevent unwanted scrolling */
-html,
+/* 移除阻止滚动的全局设置 */
+/* html,
 body {
   height: 100%;
   overflow: hidden !important;
   position: fixed;
   overscroll-behavior: none;
   touch-action: none;
-}
+} */
 
 * {
   -webkit-tap-highlight-color: transparent;
@@ -59,4 +65,4 @@ body {
 .no-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-} 
+}

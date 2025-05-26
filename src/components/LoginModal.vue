@@ -17,38 +17,62 @@
           </div>
           
           <div class="form-group">
-            <label for="email">{{ $t('login.email') }}</label>
+            <label for="username">{{ $t('login.username') }}</label>
             <input 
-              id="email" 
-              type="email" 
-              v-model="email" 
-              :placeholder="$t('login.emailPlaceholder')"
+              id="username" 
+              type="text" 
+              v-model="username" 
+              :placeholder="$t('login.usernamePlaceholder')"
               required
             />
           </div>
           
           <div class="form-group password-group">
-            <div class="password-label">
+            <div class="flex justify-between mb-2">
               <label for="password">{{ $t('login.password') }}</label>
+              <div class="forgot-password">
+                <a href="#" @click.prevent="handleForgotPassword">{{ $t('login.forgotPassword') }}</a>
+              </div>
             </div>
-            <div class="forgot-password">
-              <a href="#" @click.prevent="handleForgotPassword">{{ $t('login.forgotPassword') }}</a>
+            <div class="relative">
+              <input 
+                id="password" 
+                :type="showPassword ? 'text' : 'password'" 
+                v-model="password"
+                class="w-full pr-10"
+                required
+              />
+              <button 
+                type="button" 
+                class="absolute inset-y-0 right-0 flex items-center justify-center px-3 text-gray-400 hover:text-white"
+                @click="togglePasswordVisibility"
+                @mouseenter="showPasswordTooltip"
+                @mouseleave="hidePasswordTooltip"
+                aria-label="切换密码可见性"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  stroke-width="2" 
+                  stroke-linecap="round" 
+                  stroke-linejoin="round"
+                >
+                  <template v-if="showPassword">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </template>
+                  <template v-else>
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <line x1="3" y1="3" x2="21" y2="21"></line>
+                  </template>
+                </svg>
+              </button>
             </div>
-            <input 
-              id="password" 
-              :type="showPassword ? 'text' : 'password'" 
-              v-model="password"
-              required
-            />
-            <button 
-              type="button" 
-              class="password-toggle" 
-              @click="showPassword = !showPassword"
-              @mouseenter="showPasswordTooltip"
-              @mouseleave="hidePasswordTooltip"
-            >
-              {{ showPassword ? $t('login.hidePassword') : $t('login.showPassword') }}
-            </button>
           </div>
           
           <button type="submit" class="login-button" :disabled="isLoading">
@@ -73,8 +97,12 @@ import { ref, defineProps, defineEmits } from 'vue';
 import { login } from '@/api/user';
 import message from '@/utils/message';
 import { useI18n } from 'vue-i18n';
+import { useUserStore } from '@/stores/user';
+import { useRouter } from 'vue-router';
 
 const { t } = useI18n();
+const userStore = useUserStore();
+const router = useRouter();
 
 const props = defineProps({
   show: {
@@ -85,7 +113,7 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'showSignup']);
 
-const email = ref('');
+const username = ref('');
 const password = ref('');
 const showPassword = ref(false);
 const isLoading = ref(false);
@@ -98,26 +126,36 @@ const handleLogin = async () => {
     errorMessage.value = '';
     
     const response = await login({
-      email: email.value,
+      username: username.value,
       password: password.value
     });
     
-    console.log('登录成功:', response);
+    console.log('登录响应:', response);
     
-    // 显示成功消息
-    message.success(t('login.successMessage'));
-    
-    // 登录成功后关闭模态窗
-    closeModal();
-    
-    // 可以在这里添加登录成功后的其他操作，如刷新页面或重定向
-    // 例如：window.location.reload();
+    // 使用Pinia store处理用户登录状态
+    if (response.code==0) {
+      // 保存token到store
+      userStore.token = response.data.token;
+      localStorage.setItem('token', response.data.token);
+      
+      // 加载用户信息
+      await userStore.loadUser();
+      
+      // 显示成功消息
+      message.success(response.message || t('login.successMessage'));
+      
+      // 登录成功后关闭模态窗
+      closeModal();
+      
+      // 刷新页面以显示登录状态
+      window.location.reload();
+    } else {
+      // 错误消息已经由拦截器处理，这里只需要设置本地错误状态
+      errorMessage.value = response.message || t('login.errorMessage');
+    }
   } catch (error) {
     console.error('登录失败:', error);
     errorMessage.value = error.message || t('login.errorMessage');
-    
-    // 显示错误消息
-    message.error(errorMessage.value);
   } finally {
     isLoading.value = false;
   }
@@ -168,6 +206,12 @@ const hidePasswordTooltip = () => {
     passwordTooltip.close();
     passwordTooltip = null;
   }
+};
+
+// 切换密码可见性并隐藏提示
+const togglePasswordVisibility = () => {
+  showPassword.value = !showPassword.value;
+  hidePasswordTooltip();
 };
 </script>
 
@@ -301,23 +345,6 @@ input:focus {
 
 .password-group {
   position: relative;
-}
-
-.password-toggle {
-  position: absolute;
-  right: 10px;
-  top: 50%;
-  transform: translateY(-50%);
-  background: none;
-  border: none;
-  color: #ccc;
-  cursor: pointer;
-  font-size: 0.8rem;
-  padding: 5px;
-}
-
-.password-toggle:hover {
-  color: white;
 }
 
 .password-label {

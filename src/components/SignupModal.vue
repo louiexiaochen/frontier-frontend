@@ -17,20 +17,20 @@
           </div>
           
           <div class="form-group">
-            <label for="name">{{ $t('signup.fullName') }}</label>
+            <label for="username">{{ $t('signup.username') }}</label>
             <input 
-              id="name" 
+              id="username" 
               type="text" 
-              v-model="name" 
-              :placeholder="$t('signup.fullNamePlaceholder')"
+              v-model="username" 
+              :placeholder="$t('signup.usernamePlaceholder')"
               required
             />
           </div>
           
           <div class="form-group">
-            <label for="signup-email">{{ $t('signup.email') }}</label>
+            <label for="email">{{ $t('signup.email') }}</label>
             <input 
-              id="signup-email" 
+              id="email" 
               type="email" 
               v-model="email" 
               :placeholder="$t('signup.emailPlaceholder')"
@@ -40,20 +40,44 @@
           
           <div class="form-group">
             <label for="signup-password">{{ $t('signup.password') }}</label>
-            <input 
-              id="signup-password" 
-              :type="showPassword ? 'text' : 'password'" 
-              v-model="password"
-              :placeholder="$t('signup.passwordPlaceholder')"
-              required
-            />
-            <button 
-              type="button" 
-              class="password-toggle" 
-              @click="showPassword = !showPassword"
-            >
-              {{ showPassword ? $t('signup.hidePassword') : $t('signup.showPassword') }}
-            </button>
+            <div class="relative">
+              <input 
+                id="signup-password" 
+                :type="showPassword ? 'text' : 'password'" 
+                v-model="password"
+                :placeholder="$t('signup.passwordPlaceholder')"
+                class="w-full pr-10"
+                required
+              />
+              <button 
+                type="button" 
+                class="absolute inset-y-0 right-0 flex items-center justify-center px-3 text-gray-400 hover:text-white"
+                @click="showPassword = !showPassword"
+                aria-label="切换密码可见性"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  stroke-width="2" 
+                  stroke-linecap="round" 
+                  stroke-linejoin="round"
+                >
+                  <template v-if="showPassword">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </template>
+                  <template v-else>
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <line x1="3" y1="3" x2="21" y2="21"></line>
+                  </template>
+                </svg>
+              </button>
+            </div>
           </div>
           
           <button type="submit" class="signup-button" :disabled="isLoading">
@@ -78,8 +102,12 @@ import { ref, defineProps, defineEmits } from 'vue';
 import { register } from '@/api/user';
 import { useI18n } from 'vue-i18n';
 import message from '@/utils/message';
+import { useUserStore } from '@/stores/user';
+import { useRouter } from 'vue-router';
 
 const { t } = useI18n();
+const userStore = useUserStore();
+const router = useRouter();
 
 const props = defineProps({
   show: {
@@ -90,8 +118,8 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'showLogin']);
 
-const name = ref('');
-const email = ref('');
+const username = ref('');
+const email = ref(''); // 添加邮箱字段
 const password = ref('');
 const showPassword = ref(false);
 const isLoading = ref(false);
@@ -103,28 +131,37 @@ const handleSignup = async () => {
     errorMessage.value = '';
     
     const response = await register({
-      username: name.value,
-      email: email.value,
-      password: password.value,
-      level: 'beginner' // 默认级别，可以根据需要修改
+      username: username.value,
+      email: email.value, // 添加邮箱参数
+      password: password.value
     });
     
-    console.log('注册成功:', response);
+    console.log('注册响应:', response);
     
-    // 显示成功消息
-    message.success(t('signup.successMessage'));
-    
-    // 注册成功后关闭模态窗
-    closeModal();
-    
-    // 可以在这里添加注册成功后的其他操作，如刷新页面或重定向
-    // 例如：window.location.reload();
+    // 使用Pinia store处理用户登录状态
+    if (response.code === 0) {
+      // 保存token到store
+      userStore.token = response.data.token;
+      localStorage.setItem('token', response.data.token);
+      
+      // 加载用户信息
+      await userStore.loadUser();
+      
+      // 显示成功消息
+      message.success(response.message || t('signup.successMessage'));
+      
+      // 注册成功后关闭模态窗
+      closeModal();
+      
+      // 刷新页面以显示登录状态
+      window.location.reload();
+    } else {
+      // 错误消息已经由拦截器处理，这里只需要设置本地错误状态
+      errorMessage.value = response.message || t('signup.errorMessage');
+    }
   } catch (error) {
     console.error('注册失败:', error);
     errorMessage.value = error.message || t('signup.errorMessage');
-    
-    // 显示错误消息
-    message.error(errorMessage.value);
   } finally {
     isLoading.value = false;
   }
@@ -353,5 +390,10 @@ input:focus {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+  position: relative;
 }
 </style>

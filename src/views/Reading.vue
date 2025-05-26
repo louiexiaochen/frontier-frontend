@@ -1,459 +1,409 @@
 <template>
-    <div class="px-4 overflow-y-auto h-[calc(100vh-3.5rem)] relative hide-scrollbar">
-      <!--Section Header with progress bar-->
-      <div class="flex items-center py-4 cursor-pointer mb-4 relative z-2" @click="toggleUnitSelector">
-        <div class="flex flex-col w-full gap-3">
-          <div class="flex items-center text-2xl font-semibold">
-            <chevron-down-icon class="mr-2 opacity-70 transition-transform duration-300" />
-            <span>{{ currentUnitTitle }}</span>
+  <div class="px-6 py-8 w-full md:w-[90%] lg:w-[80%] m-auto overflow-y-auto h-[calc(100vh-3.5rem)] relative hide-scrollbar">
+    <!-- 单元列表 -->
+    <div class="space-y-4" v-show="!selectedUnitId">
+      <div 
+        v-for="unit in units" 
+        :key="unit.id"
+        class="relative w-full h-auto min-h-[103px] bg-[#191919] rounded-[20px] p-4 md:p-6 cursor-pointer transition-all duration-300 hover:bg-[#222222] flex flex-col md:flex-row items-start md:items-center"
+        :class="{'opacity-50 cursor-not-allowed': unit.locked}"
+        @click="selectUnit(unit.id)"
+      >
+        <!-- 左侧图标 -->
+        <div class="flex items-center mb-2 md:mb-0">
+          <div class="w-6 h-6 flex items-center justify-center">
+            <UnlockedIcon v-if="!unit.locked" class="text-white" :size="20" />
+            <LockedIcon v-else class="text-white/50" :size="20" />
           </div>
-  
-          <div class="flex flex-col gap-2">
-            <div class="flex items-center text-sm text-white/70">
-              <VocabularyIcon class="mr-1.5 align-middle" :size="14" />
-              {{ progressText }}
+        </div>
+
+        <!-- 单元标题 -->
+        <div class="ml-2 md:ml-4 mb-3 md:mb-0 flex-grow">
+          <h3 class="text-xl md:text-2xl lg:text-[32px] text-white font-bold leading-tight md:leading-[39px] font-inter break-words">{{ unit.title }}</h3>
+        </div>
+
+        <!-- 进度条区域 -->
+        <div class="w-full md:w-auto md:flex-grow lg:max-w-[566px] h-[31px] mt-2 md:mt-0 md:mx-4">
+          <!-- 背景进度条 -->
+          <div class="relative w-full h-full">
+            <div class="absolute inset-0 bg-white/20 rounded-[20px] shadow-lg"></div>
+            
+            <!-- 实际进度条 -->
+            <div 
+              class="absolute top-0 left-0 h-full bg-white rounded-[20px] shadow-lg transition-all duration-500"
+              :style="{ width: `${unit.progress}%` }"
+            ></div>
+            
+            <!-- 进度百分比文字 -->
+            <div class="absolute left-[11px] top-1/2 transform -translate-y-1/2">
+              <span class="text-black text-lg md:text-xl lg:text-[24px] font-bold leading-tight md:leading-[29px] font-inter">{{ unit.progress }}%</span>
             </div>
-            <div class="h-2 bg-white/10 rounded overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-blue-500 to-purple-800 rounded relative transition-all duration-500 flex items-center justify-end" :style="progressStyle">
-                <span class="text-xs pr-2 text-white">{{ progressPercentage }}%</span>
-              </div>
-            </div>
+          </div>
+        </div>
+
+        <!-- 右侧单词数量 -->
+        <div class="absolute top-3 right-3 md:static md:ml-2">
+          <div class="flex items-center gap-2">
+            <VocabularyIcon class="text-white" :size="18" />
+            <span class="text-white text-base md:text-lg lg:text-[20px] font-bold leading-tight md:leading-[24px] font-inter">{{ unit.words }}</span>
           </div>
         </div>
       </div>
-  
-      <!-- 单元选择器 -->
-      <div v-if="showUnitSelector" class="bg-[rgba(30,30,30,0.9)] rounded-lg p-4 mt-2 flex flex-col gap-3 shadow-lg relative z-3 backdrop-blur-md border border-white/10">
-        <div 
-          v-for="unit in units" 
-          :key="unit.id" 
-          class="flex items-center p-3 p-4 rounded-md bg-white/5 cursor-pointer transition-all duration-200 relative hover:bg-white/10"
-          :class="{'opacity-50 cursor-not-allowed': unit.locked}"
-          @click="selectUnit(unit.id)"
-        >
-          <div class="mr-4">
-            <UnlockedIcon v-if="!unit.locked" class="opacity-80" :size="20" />
-            <LockedIcon v-else class="opacity-80" :size="20" />
-          </div>
-          <div class="flex-1 font-medium">{{ unit.title }}</div>
-          <div class="flex flex-col gap-1 min-w-[100px]">
-            <div class="text-xs text-white/70 flex items-center">
-              <VocabularyIcon class="mr-1.5 align-middle" :size="14" />
-              {{ unit.words }}
-            </div>
-            <div class="h-1 bg-white/10 rounded-sm overflow-hidden">
-              <div class="h-full bg-gradient-to-r from-blue-500 to-purple-800 rounded-sm transition-all duration-500" :style="{ width: unit.progress + '%' }"></div>
-            </div>
-          </div>
-        </div>
-      </div>
-  
-      <div v-if="!showUnitSelector" class="relative min-h-full pb-8 mt-8">
-        <div class="w-[45%] h-40 bg-white/5 rounded-2xl absolute flex flex-col items-center justify-center cursor-pointer transition-all duration-300 overflow-hidden hover:-translate-y-1.5 hover:bg-white/8"
-             v-for="(lesson, index) in filteredLessons" 
-             :key="lesson.id" 
-             :class="{ 'opacity-50 cursor-not-allowed hover:transform-none hover:bg-white/5': lesson.locked, 'left-0': isLeftSide(index), 'right-0': !isLeftSide(index) }" 
-             :style="getCardStyle(index)"
-             @click="handleLessonClick(lesson)">
-          
-          <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 opacity-10 z-0">
-            <star-icon class="icon" :size="100" />
-          </div>
-          <div class="text-2xl font-semibold mb-2 z-10">{{ lesson.id }}</div>
-          <div class="w-3/5 h-1 bg-white/10 rounded-sm overflow-hidden z-10">
-            <div v-if="!lesson.locked" class="h-full bg-gradient-to-r from-blue-500 to-purple-800 rounded-sm transition-all duration-500" :style="{ width: lesson.progress + '%' }"></div>
-          </div>
-          
-          <!-- 为已完成的章节添加生成文章按钮 -->
-          <div v-if="!lesson.locked && lesson.progress === 100" 
-               class="absolute bottom-0 right-0 p-2 z-20"
-               @click.stop="generateEssayFromLesson(lesson)">
-            <div class="flex items-center gap-1 py-1 px-3 rounded-full bg-gradient-to-r from-blue-500/80 to-purple-800/80 text-sm font-medium transition-all duration-300 hover:from-blue-500 hover:to-purple-800">
-              <StarIcon class="text-white" :size="14" />
-              <span>生成文章</span>
-            </div>
-          </div>
-        </div>
-      </div>  
     </div>
-  </template>
+
+    <!-- 当选择了单元后显示课程列表 -->
+    <transition 
+      name="fade" 
+      enter-active-class="transition-opacity duration-300 ease-out" 
+      leave-active-class="transition-opacity duration-200 ease-in"
+      enter-from-class="opacity-0" 
+      enter-to-class="opacity-100"
+      leave-from-class="opacity-100" 
+      leave-to-class="opacity-0"
+    >
+      <div v-if="selectedUnitId && filteredLessons.length > 0">
+        <div 
+         @click="selectedUnitId = null"
+          class="relative w-full h-auto min-h-[103px] bg-[#191919] rounded-[20px] p-4 md:p-6 cursor-pointer transition-all duration-300 hover:bg-[#222222] flex flex-col md:flex-row items-start md:items-center"
+          :class="{'opacity-50 cursor-not-allowed': currentUnit.locked}"
+        >
+        <!-- 左侧图标 -->
+        <div class="flex items-center mb-2 md:mb-0">
+          <div class="w-6 h-6 flex items-center justify-center">
+            <ChevronDownIcon></ChevronDownIcon>
+          </div>
+        </div>
+
+        <!-- 单元标题 -->
+        <div class="ml-2 md:ml-4 mb-3 md:mb-0 flex-grow">
+          <h3 class="text-xl md:text-2xl lg:text-[32px] text-white font-bold leading-tight md:leading-[39px] font-inter break-words">{{ currentUnit.title }}</h3>
+        </div>
+
+        <!-- 进度条区域 -->
+        <div class="w-full md:w-auto md:flex-grow lg:max-w-[566px] h-[31px] mt-2 md:mt-0 md:mx-4">
+          <!-- 背景进度条 -->
+          <div class="relative w-full h-full">
+            <div class="absolute inset-0 bg-white/20 rounded-[20px] shadow-lg"></div>
+            
+            <!-- 实际进度条 -->
+            <div 
+              class="absolute top-0 left-0 h-full bg-white rounded-[20px] shadow-lg transition-all duration-500"
+              :style="{ width: `${currentUnit.progress}%` }"
+            ></div>
+            
+            <!-- 进度百分比文字 -->
+            <div class="absolute left-[11px] top-1/2 transform -translate-y-1/2">
+              <span class="text-black text-lg md:text-xl lg:text-[24px] font-bold leading-tight md:leading-[29px] font-inter">{{ currentUnit.progress }}%</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- 右侧单词数量 -->
+        <div class="absolute top-3 right-3 md:static md:ml-2">
+          <div class="flex items-center gap-2">
+            <VocabularyIcon class="text-white" :size="18" />
+            <span class="text-white text-base md:text-lg lg:text-[20px] font-bold leading-tight md:leading-[24px] font-inter">{{ currentUnit.words }}</span>
+          </div>
+        </div>
+      </div>
+        <div class="relative min-h-full pb-8 w-full max-w-[600px] m-auto mt-10 md:mt-20">
+          <div 
+            class="w-[8rem] md:w-[10rem] h-[8rem] md:h-[10rem] bg-white rounded-2xl absolute flex flex-col items-center justify-center cursor-pointer transition-all duration-300 overflow-hidden hover:-translate-y-1.5 hover:shadow-lg"
+            v-for="(lesson, index) in filteredLessons" 
+            :key="lesson.id" 
+            :class="{ 
+              'opacity-50 cursor-not-allowed hover:transform-none': lesson.locked, 
+              'left-0': isLeftSide(index), 
+              'right-0': !isLeftSide(index) 
+            }" 
+            :style="getCardStyle(index)"
+            @click="handleLessonClick(lesson)"
+          >
+            <div class="opacity-20 z-0">
+              <star-icon class="text-gray-800" :size="80" />
+            </div>
+            <div class="text-xl md:text-2xl font-bold text-gray-800 z-10">{{ lesson.id }}</div>
+            <div class="w-[70%] h-2 bg-gray-200 rounded-full overflow-hidden z-10 absolute bottom-5">
+              <div v-if="!lesson.locked" class="h-full bg-gray-800 rounded-full transition-all duration-500" :style="{ width: `${lesson.progress}%` }"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </transition>
+  </div>
+</template>
+
+<script setup>
+import { ref, computed, onMounted, watch, onActivated } from 'vue';
+import { useRouter, useRoute } from 'vue-router';
+import {
+  StarIcon,
+  ChevronDownIcon,
+  UnlockedIcon,
+  LockedIcon
+} from '../components/icons';
+import VocabularyIcon from '../components/icons/VocabularyIcon.vue';
+import { 
+  getAllUnits as getUnits, 
+  getUnitDetail,
+  getUnitWords
+} from '@/api/readings';
+import { generateArticle } from '@/api/article';
+
+const router = useRouter();
+const route = useRoute();
+
+const cardSize = 160;
+const verticalGap = 50;
+
+// 选中的单元ID
+const selectedUnitId = ref(null);
+const currentUnit = computed(() => units.value.find(unit => unit.id === selectedUnitId.value));
+// 单元数据
+const units = ref([
+  { id: 1, title: '第1部分 太空探索', locked: false, progress: 100, words: '75/75' },
+  { id: 2, title: '第2部分 自然地理', locked: false, progress: 56, words: '135/241' },
+  { id: 3, title: '第3部分 科技发明', locked: false, progress: 0, words: '0/122' },
+  { id: 4, title: '第4部分 动物保护', locked: true, progress: 0, words: '0/168' },
+  { id: 5, title: '第5部分 学校教育', locked: true, progress: 0, words: '0/401' },
+  { id: 6, title: '第6部分 植物研究', locked: true, progress: 0, words: '0/130' },
+  { id: 7, title: '第7部分 文化历史', locked: true, progress: 0, words: '0/79' }
+]);
+
+// ... existing code ...
+
+// 选择单元
+const selectUnit = (unitId) => {
+  if (!units.value.find(u => u.id === unitId && !u.locked)) return;
   
-  <script setup>
-  import { ref, computed, onMounted, watch, onActivated } from 'vue';
-  import { useRouter, useRoute } from 'vue-router';
-  import {
-    StarIcon,
-    ChevronDownIcon,
-    UnlockedIcon,
-    LockedIcon
-  } from '../components/icons';
-  import VocabularyIcon from '../components/icons/VocabularyIcon.vue';
+  selectedUnitId.value = unitId;
   
-  const router = useRouter();
-  const route = useRoute();
-  
-  const cardSize = 160; // 课程卡片的高度
-  const verticalGap = 50; // 增加垂直间距
-  
-  // 是否显示单元选择界面
-  const showUnitSelector = ref(false);
-  
-  // 添加进度数据
-  const progress = ref({
-    current: 135,
-    total: 241
+  // 更新URL参数
+  router.push({ 
+    path: '/home/reading', 
+    query: { unit: unitId } 
   });
+};
+
+// 当前选中单元的标题
+const currentUnitTitle = computed(() => {
+  const unit = units.value.find(u => u.id === selectedUnitId.value);
+  return unit?.title || '未知单元';
+});
+
+// 所有关卡数据
+const allLessons = ref([
+  // 第1部分
+  { id: '1-1', unitId: 1, locked: false, progress: 100 },
+  { id: '1-2', unitId: 1, locked: false, progress: 100 },
+  { id: '1-3', unitId: 1, locked: false, progress: 100 },
   
-  // 单元数据
-  const units = ref([
-    { id: 1, title: '第1部分 太空探索', locked: false, progress: 100, words: '75/75' },
-    { id: 2, title: '第2部分 自然地理', locked: false, progress: 56, words: '135/241' },
-    { id: 3, title: '第3部分 科技发明', locked: false, progress: 0, words: '0/122' },
-    { id: 4, title: '第4部分 动物保护', locked: true, progress: 0, words: '0/168' },
-    { id: 5, title: '第5部分 学校教育', locked: true, progress: 0, words: '0/401' },
-    { id: 6, title: '第6部分 植物研究', locked: true, progress: 0, words: '0/130' },
-    { id: 7, title: '第7部分 文化历史', locked: true, progress: 0, words: '0/79' }
-  ]);
+  // 第2部分
+  { id: '2-1', unitId: 2, locked: false, progress: 100 },
+  { id: '2-2', unitId: 2, locked: false, progress: 30 },
+  { id: '2-3', unitId: 2, locked: false, progress: 50 },
+  { id: '2-4', unitId: 2, locked: false, progress: 20 },
+  { id: '2-5', unitId: 2, locked: true, progress: 0 },
+  { id: '2-6', unitId: 2, locked: true, progress: 0 },
+  { id: '2-7', unitId: 2, locked: true, progress: 0 },
+  { id: '2-8', unitId: 2, locked: true, progress: 0 },
+  { id: '2-9', unitId: 2, locked: true, progress: 0 },
+  { id: '2-10', unitId: 2, locked: true, progress: 0 },
   
-  // 当前选中的单元ID - 默认设置为第2部分
-  const currentUnitId = ref(2);
+  // 第3部分
+  { id: '3-1', unitId: 3, locked: false, progress: 0 },
+  { id: '3-2', unitId: 3, locked: false, progress: 0 },
+  { id: '3-3', unitId: 3, locked: true, progress: 0 },
+  { id: '3-4', unitId: 3, locked: true, progress: 0 },
+]);
+
+// 根据当前选中的单元筛选课程
+const filteredLessons = computed(() => 
+  allLessons.value.filter(lesson => lesson.unitId === selectedUnitId.value)
+);
+
+// 判断课程卡片是否在左侧
+const isLeftSide = index => index % 2 === 0;
+
+// 获取课程卡片的样式
+const getCardStyle = index => ({
+  top: `${index * (cardSize + verticalGap)}px`
+});
+
+// 处理课程卡片点击事件
+const handleLessonClick = (lesson) => {
+  if (lesson.locked) return;
   
-  // 获取URL中的单元参数
-  const getUnitFromUrl = () => {
-    if (route.query.unit) {
-      const unitId = parseInt(route.query.unit);
-      // 检查是否是有效的单元ID且未锁定
-      const validUnit = units.value.find(u => u.id === unitId && !u.locked);
-      if (validUnit) {
-        return unitId;
-      }
+  router.push(`/reading/vocabulary/${lesson.id}`);
+};
+
+// 从特定课程生成文章
+const generateEssayFromLesson = async (lesson) => {
+  try {
+    const loadingToast = showToast('正在生成文章，请稍候...');
+    
+    const response = await generateArticle();
+    
+    closeToast(loadingToast);
+    
+    if (response.code === 0 && response.data) {
+      router.push(`/reading/essay/${response.data.article_id}`);
+    } else {
+      showToast('生成文章失败：' + (response.msg || '未知错误'), 'error');
+      const essayId = `essay-${lesson.id}`;
+      router.push(`/reading/essay/${essayId}`);
     }
-    return 2; // 默认显示第2部分
-  };
-  
-  // 当路由参数变化时更新单元ID
-  watch(() => route.query.unit, (newUnit) => {
-    if (newUnit) {
-      const unitId = parseInt(newUnit);
-      // 检查是否是有效的单元ID且未锁定
-      const validUnit = units.value.find(u => u.id === unitId && !u.locked);
-      if (validUnit) {
-        currentUnitId.value = unitId;
-        updateCurrentUnitDisplay();
-      }
-    }
-  });
-  
-  // 从API获取已学习词汇进度数据
-  const fetchVocabularyProgress = async () => {
-    try {
-      // 实际项目中，这里应该调用后端API
-      // const response = await fetch('/api/vocabulary/progress');
-      // const data = await response.json();
-      
-      // 模拟后端返回的数据
-      const mockApiResponse = {
-        totalLearnedWords: 135, // 总已学习单词数
-        unitProgress: {
-          1: { total: 75, learned: 75 },   // 第1部分
-          2: { total: 241, learned: 135 }, // 第2部分
-          3: { total: 122, learned: 0 },   // 第3部分
-          4: { total: 168, learned: 0 },   // 第4部分
-          5: { total: 401, learned: 0 },   // 第5部分
-          6: { total: 130, learned: 0 },   // 第6部分
-          7: { total: 79, learned: 0 }     // 第7部分
-        }
-      };
-      
-      // 使用模拟数据更新UI
-      updateProgressFromApi(mockApiResponse);
-      
-    } catch (error) {
-      console.error('Error fetching vocabulary progress:', error);
-    }
-  };
-  
-  // 使用API返回的数据更新进度
-  const updateProgressFromApi = (data) => {
-    // 更新各单元的进度
-    units.value.forEach(unit => {
-      const unitData = data.unitProgress[unit.id];
-      if (unitData) {
-        // 设置进度百分比
-        unit.progress = Math.round((unitData.learned / unitData.total) * 100);
-        // 更新单词数量显示
-        unit.words = `${unitData.learned}/${unitData.total}`;
-        
-        // 如果是当前选中的单元，更新整体进度显示
-        if (unit.id === currentUnitId.value) {
-          progress.value.current = unitData.learned;
-          progress.value.total = unitData.total;
-        }
-      }
-    });
+  } catch (error) {
+    console.error('生成文章时出错:', error);
+    showToast('生成文章时发生错误，请稍后重试', 'error');
     
-    // 加载各关卡的视觉进度条
-    loadLessonsVisualProgress();
-  };
-  
-  // 从本地存储加载各关卡的视觉进度条状态（仅用于UI显示）
-  const loadLessonsVisualProgress = () => {
-    const visibleLessons = filteredLessons.value;
-    
-    visibleLessons.forEach(lesson => {
-      // 优先尝试加载真实的学习进度数据
-      const lessonDetails = getLessonDetails(lesson.id);
-      if (lessonDetails) {
-        // 使用实际学习进度更新视觉进度条
-        lesson.progress = Math.round((lessonDetails.learnedWords / lessonDetails.totalWords) * 100);
-      }
-      
-      // 如果本地存储中有视觉进度数据，使用该数据作为备选
-      const storedProgress = localStorage.getItem(`lesson_${lesson.id}_visual_progress`);
-      if (storedProgress) {
-        try {
-          const data = JSON.parse(storedProgress);
-          // 只有当实际进度为0时才使用本地存储的视觉进度
-          if (lesson.progress === 0 && data.progress > 0) {
-            lesson.progress = data.progress;
-          }
-        } catch (e) {
-          console.error('Error parsing stored visual progress', e);
-        }
-      }
-    });
-  };
-  
-  // 获取特定课程的详细信息（从本地存储或模拟数据）
-  const getLessonDetails = (id) => {
-    // 实际项目中，这里应该从Vuex/Pinia存储或本地存储获取数据
-    // 模拟数据
-    const lessons = {
-      '2-1': { totalWords: 20, learnedWords: 20, progress: 100 },
-      '2-2': { totalWords: 30, learnedWords: 9, progress: 30 },
-      '2-3': { totalWords: 20, learnedWords: 10, progress: 50 },
-      '2-4': { totalWords: 25, learnedWords: 5, progress: 20 },
-      '2-5': { totalWords: 22, learnedWords: 0, progress: 0 },
-    };
-    
-    // 检查本地存储中是否有更新的进度数据
-    const storedData = localStorage.getItem(`lesson_${id}_progress`);
-    if (storedData) {
-      try {
-        const data = JSON.parse(storedData);
-        if (data && data.learnedWords !== undefined) {
-          // 使用本地存储的数据更新模拟数据
-          if (lessons[id]) {
-            lessons[id].learnedWords = data.learnedWords;
-            lessons[id].progress = Math.round((data.learnedWords / lessons[id].totalWords) * 100);
-          } else {
-            // 如果模拟数据中没有这个课程，创建一个新的
-            lessons[id] = {
-              totalWords: data.totalWords || 20,
-              learnedWords: data.learnedWords,
-              progress: Math.round((data.learnedWords / (data.totalWords || 20)) * 100)
-            };
-          }
-        }
-      } catch (e) {
-        console.error('Error parsing stored lesson progress:', e);
-      }
-    }
-    
-    return lessons[id] || { totalWords: 20, learnedWords: 0, progress: 0 };
-  };
-  
-  // 根据当前选择的单元，更新显示的进度和单元名称
-  const updateCurrentUnitDisplay = () => {
-    const selectedUnit = units.value.find(unit => unit.id === currentUnitId.value);
-    if (selectedUnit) {
-      // 从单元数据中提取进度信息
-      const [learned, total] = selectedUnit.words.split('/');
-      progress.value.current = parseInt(learned);
-      progress.value.total = parseInt(total);
-    }
-  };
-  
-  // 计算进度文本和样式
-  const progressText = computed(() => `${progress.value.current}/${progress.value.total}`);
-  const progressPercentage = computed(() => Math.round((progress.value.current / progress.value.total) * 100));
-  const progressStyle = computed(() => ({
-    width: `${progressPercentage.value}%`
-  }));
-  
-  // 当前选中单元的标题
-  const currentUnitTitle = computed(() => {
-    const unit = units.value.find(u => u.id === currentUnitId.value);
-    return unit ? unit.title : '未知单元';
-  });
-  
-  // 切换单元选择器的显示状态
-  const toggleUnitSelector = () => {
-    showUnitSelector.value = !showUnitSelector.value;
-  };
-  
-  // 选择单元
-  const selectUnit = (unitId) => {
-    if (units.value.find(u => u.id === unitId && !u.locked)) {
-      currentUnitId.value = unitId;
-      showUnitSelector.value = false;
-      updateCurrentUnitDisplay();
-      
-      // 更新URL参数
-      router.push({ 
-        path: '/home/reading', 
-        query: { unit: unitId } 
-      });
-    }
-  };
-  
-  // 在课程列表中添加Essay入口
-  const lessons = ref([
-    // 原有课程
-    { id: '1-1', unitId: 1, locked: false, progress: 100 },
-    { id: '1-2', unitId: 1, locked: false, progress: 100 },
-    { id: '1-3', unitId: 1, locked: false, progress: 100 },
-    
-    // 第2部分
-    { id: '2-1', unitId: 2, locked: false, progress: 100 },
-    { id: '2-2', unitId: 2, locked: false, progress: 30 },
-    { id: '2-3', unitId: 2, locked: false, progress: 50 },
-    { id: '2-4', unitId: 2, locked: false, progress: 20 },
-    { id: '2-5', unitId: 2, locked: true, progress: 0 },
-    { id: '2-6', unitId: 2, locked: true, progress: 0 },
-    { id: '2-7', unitId: 2, locked: true, progress: 0 },
-    { id: '2-8', unitId: 2, locked: true, progress: 0 },
-    { id: '2-9', unitId: 2, locked: true, progress: 0 },
-    { id: '2-10', unitId: 2, locked: true, progress: 0 },
-    
-    // 第3部分
-    { id: '3-1', unitId: 3, locked: false, progress: 0 },
-    { id: '3-2', unitId: 3, locked: false, progress: 0 },
-    { id: '3-3', unitId: 3, locked: true, progress: 0 },
-    { id: '3-4', unitId: 3, locked: true, progress: 0 },
-    
-    // 在课程列表中添加Essay入口
-    { id: 'essay-1', title: 'AI Essay', type: 'essay', locked: false, progress: 0 }
-  ]);
-  
-  // 处理课程卡片点击事件
-  const handleLessonClick = (lesson) => {
-    if (!lesson.locked) {
-      if (lesson.type === 'essay') {
-        router.push(`/essay/${lesson.id}`);
-      } else {
-        router.push(`/vocabulary/${lesson.id}`);
-      }
-    }
-  };
-  
-  // 所有关卡数据
-  const allLessons = ref([
-    // 第1部分
-    { id: '1-1', unitId: 1, locked: false, progress: 100 },
-    { id: '1-2', unitId: 1, locked: false, progress: 100 },
-    { id: '1-3', unitId: 1, locked: false, progress: 100 },
-    
-    // 第2部分
-    { id: '2-1', unitId: 2, locked: false, progress: 100 },
-    { id: '2-2', unitId: 2, locked: false, progress: 30 },
-    { id: '2-3', unitId: 2, locked: false, progress: 50 },
-    { id: '2-4', unitId: 2, locked: false, progress: 20 },
-    { id: '2-5', unitId: 2, locked: true, progress: 0 },
-    { id: '2-6', unitId: 2, locked: true, progress: 0 },
-    { id: '2-7', unitId: 2, locked: true, progress: 0 },
-    { id: '2-8', unitId: 2, locked: true, progress: 0 },
-    { id: '2-9', unitId: 2, locked: true, progress: 0 },
-    { id: '2-10', unitId: 2, locked: true, progress: 0 },
-    
-    // 第3部分
-    { id: '3-1', unitId: 3, locked: false, progress: 0 },
-    { id: '3-2', unitId: 3, locked: false, progress: 0 },
-    { id: '3-3', unitId: 3, locked: true, progress: 0 },
-    { id: '3-4', unitId: 3, locked: true, progress: 0 },
-  ]);
-  
-  // 根据当前选中的单元筛选课程
-  const filteredLessons = computed(() => {
-    return allLessons.value.filter(lesson => lesson.unitId === currentUnitId.value);
-  });
-  
-  // Methods
-  const isLeftSide = (index) => {
-    return index % 2 === 0; // Even indices on left, odd on right
-  };
-  
-  const getCardStyle = (index) => {
-    const top = index * (cardSize + verticalGap);
-    return {
-      top: `${top}px`
-    };
-  };
-  
-  // 当单元ID变化时，更新显示内容
-  watch(currentUnitId, () => {
-    loadLessonsVisualProgress();
-  });
-  
-  // 页面加载时获取最新进度数据
-  onMounted(() => {
-    // 先初始化单元ID，从URL获取
-    currentUnitId.value = getUnitFromUrl();
-    // 然后获取进度数据
-    fetchVocabularyProgress();
-  });
-  
-  // 每次组件被激活时刷新显示进度
-  onActivated(() => {
-    loadLessonsVisualProgress();
-  });
-  
-  // 页面激活时刷新视觉进度
-  watch(() => route.path, () => {
-    if (route.path.includes('/home/reading')) {
-      loadLessonsVisualProgress();
-    }
-  });
-  
-  // 添加生成文章的函数
-  const generateEssay = () => {
-    // 获取当前单元的ID
-    const unitId = currentUnitId.value;
-    
-    // 创建一个唯一的essay ID，包含单元信息
-    const essayId = `essay-unit-${unitId}`;
-    
-    // 导航到Essay页面
-    router.push(`/essay/${essayId}`);
-    
-    // 关闭单元选择器
-    showUnitSelector.value = false;
-  };
-  
-  // 修改生成文章的函数，接收特定课程参数
-  const generateEssayFromLesson = (lesson) => {
-    // 获取当前单元的ID
-    const unitId = currentUnitId.value;
-    
-    // 创建一个唯一的essay ID，包含单元和课程信息
     const essayId = `essay-${lesson.id}`;
-    
-    // 导航到Essay页面
-    router.push(`/essay/${essayId}`);
-    
-    // 阻止事件冒泡，防止触发课程点击事件
-    event.stopPropagation();
-  };
-  </script>
-    
-  <style>
-  /* 只保留一些特殊样式，其他都用Tailwind实现 */
-  .hide-scrollbar::-webkit-scrollbar {
-    display: none;
+    router.push(`/reading/essay/${essayId}`);
   }
   
-  .hide-scrollbar {
-    -ms-overflow-style: none;
-    scrollbar-width: none;
+  event.stopPropagation();
+};
+
+// 简单的Toast提示函数
+const showToast = (message, type = 'info') => {
+  const toast = document.createElement('div');
+  toast.className = `toast toast-${type}`;
+  toast.textContent = message;
+  
+  Object.assign(toast.style, {
+    position: 'fixed',
+    top: '20px',
+    left: '50%',
+    transform: 'translateX(-50%)',
+    padding: '10px 20px',
+    borderRadius: '4px',
+    backgroundColor: type === 'error' ? '#f44336' : '#333',
+    color: 'white',
+    zIndex: '9999',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
+  });
+  
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.remove();
+  }, 2500);
+  return toast;
+};
+
+const closeToast = (toast) => {
+  if (toast && toast.parentNode) {
+    toast.parentNode.removeChild(toast);
   }
-  </style>
+};
+
+// 从API获取单元信息和进度数据
+const fetchVocabularyProgress = async () => {
+  try {
+    const response = await getUnits();
+    
+    if (response.code === 0 && response.data && response.data.units) {
+      console.log("获取到的单元数据:", response.data.units);
+      
+      const formattedUnits = response.data.units.map(unit => ({
+        id: unit.id,
+        title: unit.name,
+        locked: unit.level > 2,
+        progress: 0,
+        words: `0/${unit.word_count}`,
+        description: unit.description,
+        level: unit.level,
+        order: unit.order
+      }));
+      
+      units.value = formattedUnits;
+      await fetchUnitsProgress(formattedUnits);
+    } else {
+      console.error('获取单元信息失败:', response.msg || '未知错误');
+      showToast('获取单元信息失败，显示默认数据', 'error');
+    }
+  } catch (error) {
+    console.error('获取单元信息出错:', error);
+    showToast('网络错误，显示默认数据', 'error');
+  }
+};
+
+// 获取所有单元的学习进度
+const fetchUnitsProgress = async (unitsList) => {
+  try {
+    for (const unit of unitsList) {
+      if (unit.locked) continue;
+      
+      try {
+        const progressResponse = await getUnitDetail(unit.id);
+        
+        if (progressResponse.code === 0 && progressResponse.data) {
+          const { progress } = progressResponse.data;
+          
+          if (progress) {
+            unit.progress = Math.round((progress.words_learned / progress.words_total) * 100);
+            unit.words = `${progress.words_learned}/${progress.words_total}`;
+          }
+        }
+      } catch (err) {
+        console.error(`获取单元 ${unit.id} 进度失败:`, err);
+      }
+    }
+  } catch (error) {
+    console.error('获取单元进度出错:', error);
+  }
+};
+
+// 页面加载时获取最新进度数据
+onMounted(() => {
+  fetchVocabularyProgress();
+  
+  // 检查URL参数
+  const { unit } = route.query;
+  if (unit) {
+    const unitId = parseInt(unit);
+    const validUnit = units.value.find(u => u.id === unitId && !u.locked);
+    if (validUnit) {
+      selectedUnitId.value = unitId;
+    }
+  }
+});
+
+// 监听路由变化
+watch(() => route.query.unit, (newUnit) => {
+  if (!newUnit) {
+    selectedUnitId.value = null;
+    return;
+  }
+  
+  const unitId = parseInt(newUnit);
+  const validUnit = units.value.find(u => u.id === unitId && !u.locked);
+  if (validUnit) {
+    selectedUnitId.value = unitId;
+  }
+});
+</script>
+  
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+
+.font-inter {
+  font-family: 'Inter', sans-serif;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.3s ease;
+}
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+}</style>

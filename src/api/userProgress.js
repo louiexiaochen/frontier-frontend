@@ -8,7 +8,7 @@ import { get, post, put } from '@/utils/http';
  * @returns {Promise} 用户进度信息
  */
 export const getUserProgress = () => {
-  return get('/users/progress');
+  return get('/user/progress');
 };
 
 /**
@@ -18,7 +18,7 @@ export const getUserProgress = () => {
  * @returns {Promise} 更新结果
  */
 export const updateReadingProgress = (id, data) => {
-  return post(`/users/progress/reading/${id}`, data);
+  return post(`/user/progress/reading/${id}`, data);
 };
 
 /**
@@ -28,7 +28,7 @@ export const updateReadingProgress = (id, data) => {
  * @returns {Promise} 更新结果
  */
 export const updateVocabularyProgress = (id, data) => {
-  return post(`/users/progress/vocabulary/${id}`, data);
+  return post(`/user/progress/vocabulary/${id}`, data);
 };
 
 /**
@@ -38,7 +38,7 @@ export const updateVocabularyProgress = (id, data) => {
  * @returns {Promise} 更新结果
  */
 export const updateEssayProgress = (id, data) => {
-  return post(`/users/progress/essay/${id}`, data);
+  return post(`/user/progress/essay/${id}`, data);
 };
 
 /**
@@ -46,7 +46,7 @@ export const updateEssayProgress = (id, data) => {
  * @returns {Promise} 用户统计数据
  */
 export const getUserStatistics = () => {
-  return get('/users/statistics');
+  return get('/user/statistics');
 };
 
 /**
@@ -55,7 +55,7 @@ export const getUserStatistics = () => {
  * @returns {Promise} 更新结果
  */
 export const updateUserProfile = (data) => {
-  return put('/users/profile', data);
+  return put('/user/profile', data);
 };
 
 /**
@@ -63,7 +63,7 @@ export const updateUserProfile = (data) => {
  * @returns {Promise} 单元信息列表
  */
 export const getUnits = () => {
-  return get('/users/units');
+  return get('/user/units');
 };
 
 /**
@@ -72,7 +72,7 @@ export const getUnits = () => {
  * @returns {Promise} 课程列表
  */
 export const getLessons = (params = {}) => {
-  return get('/users/lessons', params);
+  return get('/user/lessons', params);
 };
 
 /**
@@ -81,7 +81,7 @@ export const getLessons = (params = {}) => {
  * @returns {Promise} 课程详情
  */
 export const getLesson = (id) => {
-  return get(`/users/lessons/${id}`);
+  return get(`/user/lessons/${id}`);
 };
 
 /**
@@ -90,5 +90,5 @@ export const getLesson = (id) => {
  * @returns {Promise} 课程进度
  */
 export const getLessonProgress = (id) => {
-  return get(`/users/lessons/${id}/progress`);
+  return get(`/user/lessons/${id}/progress`);
 };

@@ -48,3 +48,42 @@ export const updateReading = (id, data) => {
 export const deleteReading = (id) => {
   return del(`/readings/${id}`);
 };
+
+/**
+ * 单元相关API
+ */
+
+/**
+ * 获取所有学习单元
+ * @returns {Promise} 学习单元列表
+ */
+export const getAllUnits = () => {
+  return get('/unit/list');
+};
+
+/**
+ * 获取单元详情
+ * @param {String|Number} unitId - 单元ID
+ * @returns {Promise} 单元详情，包含用户进度和单元信息
+ */
+export const getUnitDetail = (unitId) => {
+  return get('/unit/detail', { unit_id: unitId });
+};
+
+/**
+ * 获取单元进度
+ * @param {String|Number} unitId - 单元ID
+ * @returns {Promise} 单元进度
+ */
+export const getUnitProgress = (unitId) => {
+  return get('/unit/progress', { unit_id: unitId });
+};
+
+/**
+ * 获取单元单词列表
+ * @param {String|Number} unitId - 单元ID
+ * @returns {Promise} 单元单词列表
+ */
+export const getUnitWords = (unitId) => {
+  return get('/unit/words', { unit_id: unitId });
+};
