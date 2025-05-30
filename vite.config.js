@@ -28,7 +28,7 @@ export default defineConfig(({ command })=> {
       proxy: {
         '/api': {
           // target: "https://www.frontierx.cn/api/",
-          target: "http://long.free.idcfengye.com",
+          target: "http://121.41.59.178",
           changeOrigin: true,
           rewrite: (path) => path.replace(/^\/api/, '')
         },

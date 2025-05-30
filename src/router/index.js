@@ -2,6 +2,7 @@ import { createRouter, createWebHistory } from 'vue-router'
 
 // 导入特点页面
 import Features from '@/views/Features.vue';
+import VocabularyChallenge from '@/views/VocabularyChallenge.vue';
 
 const routes = [
   {
@@ -71,7 +72,17 @@ const routes = [
       {
         path: '/reading/vocabulary/:id',
         name: 'Vocabulary',
-        component: () => import('../views/Vocabulary.vue')
+        component: () => import('../views/VocabularyQuiz.vue')
+      },
+      {
+        path: '/reading/phonetic-quiz/:id',
+        name: 'PhoneticQuiz',
+        component: () => import('../views/PhoneticQuiz.vue')
+      },
+      {
+        path: '/reading/definition-quiz/:id',
+        name: 'DefinitionQuiz',
+        component: () => import('../views/DefinitionQuiz.vue')
       },
       {
         path: '/reading/essay/:id',
@@ -118,7 +129,15 @@ const routes = [
       title: '价格 - FrontierX',
       requiresAuth: false
     }
-  }
+  },
+  {
+    path: '/reading/vocabulary/:id',
+    name: 'VocabularyChallenge',
+    component: VocabularyChallenge,
+    meta: {
+      requiresAuth: true
+    }
+  },
 ]
 
 const router = createRouter({

@@ -1,7 +1,7 @@
 /**
  * 配置相关API
  */
-import { get } from '@/utils/http';
+import { get } from '@/utils/http/index';
 
 /**
  * 获取导航标签

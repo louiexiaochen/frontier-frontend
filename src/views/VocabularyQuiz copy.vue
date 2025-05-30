@@ -9,9 +9,9 @@
 
     <!-- 主要内容区域 -->
     <div class="flex flex-col relative z-10 h-full">
-      <div class="flex-1 flex flex-col px-6 pt-6 mx-auto w-full h-full">
+      <div class="flex-1 flex flex-col px-6 pt-6 mx-auto w-full h-full max-h-screen">
         <!-- 进度条和返回按钮 -->
-        <div class="flex items-center mb-8 gap-4">
+        <div class="flex items-center mb-4 gap-4">
           <button 
             class="border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer transition-colors duration-200" 
             @click="navigation.handleBack"
@@ -28,7 +28,7 @@
         </div>
 
         <!-- 滚动内容区域 -->
-        <div class="flex-1 overflow-y-auto custom-scrollbar w-[100%] m-auto">
+        <div class="flex-1 overflow-y-auto custom-scrollbar w-[100%] m-auto pb-20">
           <div class="flex-1 flex flex-col justify-between gap-8 will-change-transform pb-4 max-w-[800px] m-auto">
             <!-- 单词展示区域 -->
             <div class="text-center animate-fadeIn">
@@ -99,8 +99,8 @@
           </div>
         </div>
 
-        <!-- 底部按钮区域 -->
-        <div class="flex gap-4 mt-4 justify-center py-4">
+        <!-- 底部按钮区域 - 修改为固定定位 -->
+        <div class="fixed bottom-0 left-0 right-0 flex gap-4 justify-center py-4 px-6 bg-black/80 backdrop-blur-sm z-20">
           <!-- 未显示释义时的按钮 -->
           <template v-if="!ui.showDefinition">
             <button 
@@ -161,6 +161,7 @@ import { ref, computed, reactive, onMounted, onBeforeUnmount, nextTick } from 'v
 import { useRouter, useRoute } from 'vue-router';
 import BackIcon from '../components/icons/BackIcon.vue';
 import EnglishPronunciationButton from '../components/icons/EnglishPronunciationButton.vue';
+import { getCourseWords, updateWordStatus } from '@/api/readings';
 
 // ==================== 基础设置 ====================
 const router = useRouter();
@@ -277,12 +278,13 @@ const ui = reactive({
   
   // 进度相关计算属性
   get progress() {
-    const totalProgress = wordData.learningState.totalVocabularyProgress;
-    if (totalProgress.totalWords === 0) return 0;
-    return Math.round((totalProgress.totalLearnedWords / totalProgress.totalWords) * 100);
+    const { currentWordIndex, totalWords } = wordData.learningState;
+    // 计算完成百分比：(当前索引 + 1) / 总单词数 * 100
+    return totalWords === 0 ? 0 : Math.round(((currentWordIndex + 1) / totalWords) * 100);
   },
   
   get progressText() {
+    // 显示百分比
     return `${this.progress}%`;
   },
   
@@ -382,6 +384,13 @@ const sm2Algorithm = {
 };
 
 // ==================== 单词学习模块 ====================
+const WORD_STATUS = {
+  UNLEARNED: 0,  // 未学习
+  KNOWN: 1,      // 认识
+  FUZZY: 2,      // 模糊
+  UNKNOWN: 3     // 不认识
+};
+
 const wordLearning = reactive({
   // 是否是最后一个单词
   get isLastWord() {
@@ -389,31 +398,47 @@ const wordLearning = reactive({
   },
   
   // 处理用户对单词的响应
-  async handleResponse(type) {
+  handleResponse(type) {
     console.log(`User responded: ${type}`);
     
-    // 使用SM-2算法更新单词学习状态
     const currentWord = wordData.currentWord;
-    const result = sm2Algorithm.updateWordSM2State(currentWord, type);
+    // 根据用户响应类型设置相应状态
+    const status = type === 'know' ? WORD_STATUS.KNOWN 
+                : type === 'fuzzy' ? WORD_STATUS.FUZZY 
+                : WORD_STATUS.UNKNOWN;
+
+    // 从路由参数获取course_id
+    const courseId = route.params.id;
+
+    // 非阻塞方式更新单词状态
+    updateWordStatus({
+      status,
+      word_id: currentWord.id,
+      course_id:  courseId,
+      progress: status === WORD_STATUS.KNOWN ? 1 : 3  // 如果认识就设为1，否则为3
+    }).catch(error => {
+      console.error('更新单词状态失败:', error);
+    });
     
     // 如果用户认识或模糊记得这个单词，增加认识的单词计数
     if (type === 'know' || type === 'fuzzy') {
       sessionLearned.value++;
-      
-      // 保存进度到后端
-      await this.saveVocabularyProgress();
-      
-      // 刷新进度数据
-      await this.fetchVocabularyProgress();
+      // 非阻塞方式更新进度
+      this.saveVocabularyProgress().catch(error => {
+        console.error('保存进度失败:', error);
+      });
+      this.fetchVocabularyProgress().catch(error => {
+        console.error('获取进度失败:', error);
+      });
     }
     
-    // 显示释义界面
+    // 立即显示释义界面
     ui.showDefinition = true;
   },
   
   // 处理下一个单词
   async handleNextWord() {
-    // 更新当前词索引
+    // 立即更新当前词索引
     wordData.learningState.currentWordIndex++;
     
     // 重置显示释义的标志
@@ -424,20 +449,34 @@ const wordLearning = reactive({
   },
   
   // 处理记错了按钮
-  async handleWrong() {
+  handleWrong() {
+    const currentWord = wordData.currentWord;
+    const courseId = route.params.id;
+
+    // 非阻塞方式更新单词状态为不认识
+    updateWordStatus({
+      status: WORD_STATUS.UNKNOWN,
+      word_id: currentWord.id,
+      course_id:  courseId,
+      progress: 0  // 不认识设为0
+    }).catch(error => {
+      console.error('更新单词状态失败:', error);
+    });
+
     // 如果之前标记为认识，减少计数
     if (sessionLearned.value > 0) {
       sessionLearned.value--;
-      
-      // 更新进度到后端
-      await this.saveVocabularyProgress();
-      
-      // 刷新进度数据
-      await this.fetchVocabularyProgress();
+      // 非阻塞方式更新进度
+      this.saveVocabularyProgress().catch(error => {
+        console.error('保存进度失败:', error);
+      });
+      this.fetchVocabularyProgress().catch(error => {
+        console.error('获取进度失败:', error);
+      });
     }
     
-    // 继续下一个单词
-    await this.handleNextWord();
+    // 立即继续下一个单词
+    this.handleNextWord();
   },
   
   // 获取词汇学习总进度
@@ -668,24 +707,20 @@ onBeforeUnmount(() => {
   }
 });
 
-import { getUnitWords } from '@/api/readings';
-
 // 获取单元词汇列表
 const fetchUnitWords = async () => {
   try {
-    const unitId = route.query.unit_id;
-    if (!unitId) {
-      console.error('缺少单元ID参数');
-      return;
-    }
+    // 默认使用固定的unit_id
+    const unitId = route.params.id;
     
-    const response = await getUnitWords(unitId);
+    const response = await getCourseWords(unitId);
     
-    if (response.data) {
+    if (response.code === 0 && response.data) {
       const { words } = response.data;
       
       // 转换API返回的词汇数据为组件需要的格式
       const formattedWords = words.map(word => ({
+        id: word.id,
         word: word.word,
         phonetic: word.phonetic,
         definition: word.definition,
@@ -709,12 +744,14 @@ const fetchUnitWords = async () => {
       wordData.wordList = formattedWords;
       
       // 更新学习状态
-      wordData.learningState.totalWords = formattedWords.length;
-      wordData.learningState.learnedWords = 0;
-      wordData.learningState.currentWordIndex = 0;
-      wordData.learningState.totalVocabularyProgress = {
-        totalLearnedWords: 0,
-        totalWords: formattedWords.length
+      wordData.learningState = {
+        totalWords: formattedWords.length,
+        learnedWords: 0,
+        currentWordIndex: 0,
+        totalVocabularyProgress: {
+          totalLearnedWords: 0,
+          totalWords: formattedWords.length
+        }
       };
       
       // 重置UI状态
@@ -748,6 +785,8 @@ onMounted(async () => {
 .custom-scrollbar {
   scrollbar-width: thin;
   scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+  -webkit-overflow-scrolling: touch; /* 增加iOS滚动支持 */
+  overscroll-behavior: contain; /* 防止滚动穿透 */
 }
 
 .custom-scrollbar::-webkit-scrollbar {
@@ -816,16 +855,20 @@ onMounted(async () => {
   }
 }
 
-/* 进度条样式 - 保留原样，因为渐变效果在Tailwind中需要自定义 */
+/* 进度条样式 */
 .progress-fill {
   height: 100%;
-  /* background: linear-gradient(90deg, #4A99E9 0%, #5C2797 100%); */
-  background: white;
+  background: linear-gradient(90deg, #4A99E9 0%, #5C2797 100%);
   border-radius: 4rem;
   transition: width 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: flex-end;
+  
+  span {
+    margin-right: 10px;
+    font-weight: bold;
+  }
 }
 
 /* 动画效果 */
@@ -842,5 +885,16 @@ onMounted(async () => {
 
 .animate-fadeIn {
   animation: fadeIn 0.3s ease-in-out;
+}
+
+/* 确保内容区域不被底部按钮遮挡 */
+.pb-20 {
+  padding-bottom: 5rem !important;
+}
+
+/* 底部按钮区域样式 */
+.backdrop-blur-sm {
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
 }
 </style>

@@ -1,8 +1,8 @@
 /**
  * 用户相关API
  */
-import { get, post } from '@/utils/http';
-import { saveToken, removeToken } from '@/utils/http/tokenManager';
+import { get, post } from '@/utils/http/index';
+import { setToken, removeToken } from '@/utils/http/tokenManager';
 
 /**
  * 用户注册
@@ -13,7 +13,7 @@ export const register = async (data) => {
   const response = await post('/user/register', data);
   // 适配新的响应格式，token在data字段中，code为0表示成功
   if (response && response.code === 0 && response.data && response.data.token) {
-    saveToken(response.data.token);
+    setToken(response.data.token);
   }
   return response;
 };
@@ -29,7 +29,7 @@ export const login = async (data) => {
   
   // 适配新的响应格式，token在data字段中，code为0表示成功
   if (response && response.code === 0 && response.data && response.data.token) {
-    saveToken(response.data.token);
+    setToken(response.data.token);
   }
   return response;
 };

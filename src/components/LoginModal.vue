@@ -135,8 +135,8 @@ const handleLogin = async () => {
     // 使用Pinia store处理用户登录状态
     if (response.code==0) {
       // 保存token到store
-      userStore.token = response.data.token;
-      localStorage.setItem('token', response.data.token);
+      userStore.token = response.token;
+      localStorage.setItem('token', response.token);
       
       // 加载用户信息
       await userStore.loadUser();

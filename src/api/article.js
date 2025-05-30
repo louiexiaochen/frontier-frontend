@@ -2,7 +2,7 @@
  * 文章相关API
  * 基于文档中的API接口实现
  */
-import { get, post } from '@/utils/http';
+import { get, post } from '@/utils/http/index';
 
 /**
  * 获取文章详情

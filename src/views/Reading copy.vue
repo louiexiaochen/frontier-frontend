@@ -164,7 +164,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, onActivated } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import {
   StarIcon,
@@ -181,45 +181,45 @@ import {
 } from '@/api/unit';
 import { generateArticle } from '@/api/article';
 
-// ==================== 路由相关 ====================
 const router = useRouter();
 const route = useRoute();
 
-// ==================== 常量定义 ====================
-const CARD_CONFIG = {
-  size: 160,
-  verticalGap: 50,
-  minProgress: 100
-};
+const cardSize = 160;
+const verticalGap = 50;
 
-// ==================== 状态管理 ====================
+// 选中的单元ID
 const selectedUnitId = ref(null);
-const units = ref([]);
-const allLessons = ref([]);
-
-// ==================== 计算属性 ====================
 const currentUnit = computed(() => units.value.find(unit => unit.id === selectedUnitId.value));
-const filteredLessons = computed(() => allLessons.value);
-const isNewLessonDisabled = computed(() => {
-  const lessons = filteredLessons.value;
-  if (lessons.length === 0) return false;
-  const lastLesson = lessons[lessons.length - 1];
-  return lastLesson?.progress < CARD_CONFIG.minProgress;
-});
+// 单元数据
+const units = ref([
+  { id: 1, title: '第1部分 太空探索', locked: false, progress: 100, words: '75/75' },
+  { id: 2, title: '第2部分 自然地理', locked: false, progress: 56, words: '135/241' },
+  { id: 3, title: '第3部分 科技发明', locked: false, progress: 0, words: '0/122' },
+]);
 
-// ==================== 布局计算函数 ====================
-const isLeftSide = index => index % 2 === 0;
-const getCardStyle = index => ({
-  top: `${index * (CARD_CONFIG.size + CARD_CONFIG.verticalGap)}px`
-});
+// ... existing code ...
 
-// ==================== 数据加载函数 ====================
+// 从API获取单元信息和进度数据
 const fetchVocabularyProgress = async () => {
   try {
     const response = await getAllUnits();
-    if (response.code === 0) {
-      units.value = formatUnitsData(response.data);
+    
+    if (response.code == 0) {
+      console.log("获取到的单元数据:", response);
+      const formattedUnits = response.data.map(unit => ({
+        id: unit.id,
+        title: unit.name,
+        locked: unit.level > 2, // 根据实际业务逻辑调整
+        progress: Math.round((unit.progresses?.words_learned / unit.progresses?.words_total) * 100) || 0,
+        words: `0/${unit.word_count}`,
+        description: unit.description,
+        level: unit.level,
+        order: unit.order
+      }));
+      
+      units.value = formattedUnits;
     } else {
+      console.error('获取单元信息失败');
       showToast('获取单元信息失败，显示默认数据', 'error');
     }
   } catch (error) {
@@ -228,89 +228,81 @@ const fetchVocabularyProgress = async () => {
   }
 };
 
-const formatUnitsData = (data) => {
-  return data.map(unit => ({
-    id: unit.id,
-    title: unit.name,
-    locked: unit.level > 2,
-    progress: calculateProgress(unit.progresses?.words_learned, unit.progresses?.words_total),
-    words: `${unit.progresses?.words_learned || 0}/${unit.word_count}`,
-    description: unit.description,
-    level: unit.level,
-    order: unit.order
-  }));
-};
 
-const calculateProgress = (learned = 0, total = 0) => {
-  if (!total) return 0;
-  return Math.round((learned / total) * 100);
-};
-
-// ==================== 交互处理函数 ====================
+// 选择单元
 const selectUnit = async (unitId) => {
   const unit = units.value.find(u => u.id === unitId);
   if (!unit || unit.locked) return;
   
   try {
+    // 获取单元课程
     const response = await getUnitCourses(unitId);
-    if (response.code === 0) {
-      handleUnitCoursesResponse(response.data, unitId);
-      updateSelectedUnit(unitId);
+    // 如果没有课程数据，创建新课程
+    if (response.code == 0) {
+      const coursesData = response.data || [];
+      console.log('获取到的单元课程:', coursesData);
+      allLessons.value = coursesData.map((course, index) => ({
+        id: course.course_id,
+        name: `第${index + 1}课`,
+        unitId: course.unit_id,
+        locked: false,
+        progress: Math.round((course.words_learned / course.words_total) * 100) || 0,
+        words_learned: course.words_learned,
+        words_total: course.words_total,
+        is_completed: course.is_completed,
+        last_studied_at: course.last_studied_at
+      }));
+      console.log('更新后的单元课程:', allLessons.value[1]);
+      
+      // 更新当前单元的总进度
+      const totalWordsLearned = coursesData.reduce((sum, course) => sum + course.words_learned, 0);
+      const totalWords = coursesData.reduce((sum, course) => sum + course.words_total, 0);
+      
+      // 更新单元进度
+      const unitIndex = units.value.findIndex(u => u.id === unitId);
+      if (unitIndex !== -1) {
+        units.value[unitIndex] = {
+          ...units.value[unitIndex],
+          progress: Math.round((totalWordsLearned / totalWords) * 100) || 0,
+          words: `${totalWordsLearned}/${totalWords}`
+        };
+      }
     }
+    
+    selectedUnitId.value = unitId;
+    
+    // 更新URL参数
+    router.push({ 
+      path: '/home/reading', 
+      query: { unit: unitId } 
+    });
   } catch (error) {
     console.error('选择单元失败:', error);
     showToast('选择单元失败，请稍后重试', 'error');
   }
 };
 
-const handleUnitCoursesResponse = (coursesData, unitId) => {
-  allLessons.value = formatCoursesData(coursesData);
-  updateUnitProgress(coursesData, unitId);
-};
-
-const formatCoursesData = (courses) => {
-  return courses.map((course, index) => ({
-    id: course.course_id,
-    name: `第${index + 1}课`,
-    unitId: course.unit_id,
-    locked: false,
-    progress: calculateProgress(course.words_learned, course.words_total),
-    words_learned: course.words_learned,
-    words_total: course.words_total,
-    is_completed: course.is_completed,
-    last_studied_at: course.last_studied_at
-  }));
-};
-
-const updateUnitProgress = (coursesData, unitId) => {
-  const totalWordsLearned = coursesData.reduce((sum, course) => sum + course.words_learned, 0);
-  const totalWords = coursesData.reduce((sum, course) => sum + course.words_total, 0);
-  
-  const unitIndex = units.value.findIndex(u => u.id === unitId);
-  if (unitIndex !== -1) {
-    units.value[unitIndex] = {
-      ...units.value[unitIndex],
-      progress: calculateProgress(totalWordsLearned, totalWords),
-      words: `${totalWordsLearned}/${totalWords}`
-    };
-  }
-};
-
-const updateSelectedUnit = (unitId) => {
-  selectedUnitId.value = unitId;
-  router.push({ 
-    path: '/home/reading', 
-    query: { unit: unitId } 
-  });
-};
-
+// 创建新课程
 const createNewCourse = async () => {
-  if (isNewLessonDisabled.value) return;
-  
   try {
-    const response = await createUnitProgress(selectedUnitId.value.toString());
-    if (response.code === 0 && response.data) {
-      addNewCourse(response.data);
+    if (!selectedUnitId.value) return;
+    
+    const createResponse = await createUnitProgress(selectedUnitId.value.toString());
+    if (createResponse.code === 0 && createResponse.data) {
+      // 添加新课程到列表
+      const newCourse = {
+        id: createResponse.data.course_id,
+        name: `第${allLessons.value.length + 1}课`,
+        unitId: createResponse.data.unit_id,
+        locked: false,
+        progress: 0,
+        words_learned: 0,
+        words_total: createResponse.data.words_total || 0,
+        is_completed: false,
+        last_studied_at: null
+      };
+      
+      allLessons.value.push(newCourse);
       showToast('成功创建新课程', 'info');
     }
   } catch (error) {
@@ -319,24 +311,47 @@ const createNewCourse = async () => {
   }
 };
 
-const addNewCourse = (courseData) => {
-  const newCourse = {
-    id: courseData.course_id,
-    name: `第${allLessons.value.length + 1}课`,
-    unitId: courseData.unit_id,
-    locked: false,
-    progress: 0,
-    words_learned: 0,
-    words_total: courseData.words_total || 0,
-    is_completed: false,
-    last_studied_at: null
-  };
-  allLessons.value.push(newCourse);
-};
+// 当前选中单元的标题
+const currentUnitTitle = computed(() => {
+  const unit = units.value.find(u => u.id === selectedUnitId.value);
+  return unit?.title || '未知单元';
+});
 
+// 所有关卡数据
+const allLessons = ref([
+  // 第1部分
+  { id: '1-1', unitId: 1, locked: false, progress: 100 },
+  
+  // 第2部分
+  { id: '2-1', unitId: 2, locked: false, progress: 100 },
+  
+  // 第3部分
+  { id: '3-1', unitId: 3, locked: false, progress: 0 },
+]);
+
+// 根据当前选中的单元筛选课程
+const filteredLessons = computed(() => 
+  allLessons.value
+);
+
+// 判断课程卡片是否在左侧
+const isLeftSide = index => index % 2 === 0;
+
+// 获取课程卡片的样式
+const getCardStyle = index => ({
+  top: `${index * (cardSize + verticalGap)}px`
+});
+
+// 处理课程卡片点击事件
 const handleLessonClick = async (lesson) => {
   if (lesson.locked) return;
+  
   try {
+    // 如果需要，可以在这里调用完成单元的接口
+    // if (lesson.progress === 100) {
+    //   await completeUnit(selectedUnitId.value);
+    // }
+    
     router.push(`/reading/vocabulary/${lesson.id}`);
   } catch (error) {
     console.error('处理课程点击失败:', error);
@@ -344,15 +359,35 @@ const handleLessonClick = async (lesson) => {
   }
 };
 
-// ==================== 通知函数 ====================
-const showToast = (message, type = 'info') => {
-  const toast = createToastElement(message, type);
-  document.body.appendChild(toast);
-  setTimeout(() => toast.remove(), 2500);
-  return toast;
+// 从特定课程生成文章
+const generateEssayFromLesson = async (lesson) => {
+  try {
+    const loadingToast = showToast('正在生成文章，请稍候...');
+    
+    const response = await generateArticle();
+    
+    closeToast(loadingToast);
+    
+    if (response.code === 0 && response.data) {
+      router.push(`/reading/essay/${response.data.article_id}`);
+    } else {
+      showToast('生成文章失败：' + (response.msg || '未知错误'), 'error');
+      const essayId = `essay-${lesson.id}`;
+      router.push(`/reading/essay/${essayId}`);
+    }
+  } catch (error) {
+    console.error('生成文章时出错:', error);
+    showToast('生成文章时发生错误，请稍后重试', 'error');
+    
+    const essayId = `essay-${lesson.id}`;
+    router.push(`/reading/essay/${essayId}`);
+  }
+  
+  event.stopPropagation();
 };
 
-const createToastElement = (message, type) => {
+// 简单的Toast提示函数
+const showToast = (message, type = 'info') => {
   const toast = document.createElement('div');
   toast.className = `toast toast-${type}`;
   toast.textContent = message;
@@ -370,20 +405,31 @@ const createToastElement = (message, type) => {
     boxShadow: '0 2px 8px rgba(0,0,0,0.2)'
   });
   
+  document.body.appendChild(toast);
+  setTimeout(() => {
+    toast.remove();
+  }, 2500);
   return toast;
 };
 
 const closeToast = (toast) => {
-  toast?.parentNode?.removeChild(toast);
+  if (toast && toast.parentNode) {
+    toast.parentNode.removeChild(toast);
+  }
 };
 
-// ==================== 生命周期钩子 ====================
-onMounted(() => {
-  fetchVocabularyProgress();
-  initializeFromRoute();
+// 判断是否应该禁用新建课程按钮
+const isNewLessonDisabled = computed(() => {
+  if (filteredLessons.value.length === 0) return false;
+  const lastLesson = filteredLessons.value[filteredLessons.value.length - 1];
+  return lastLesson && lastLesson.progress < 100;
 });
 
-const initializeFromRoute = () => {
+// 页面加载时获取最新进度数据
+onMounted(() => {
+  fetchVocabularyProgress();
+  
+  // 检查URL参数
   const { unit } = route.query;
   if (unit) {
     const unitId = parseInt(unit);
@@ -392,9 +438,9 @@ const initializeFromRoute = () => {
       selectedUnitId.value = unitId;
     }
   }
-};
+});
 
-// ==================== 路由监听 ====================
+// 监听路由变化
 watch(() => route.query.unit, (newUnit) => {
   if (!newUnit) {
     selectedUnitId.value = null;
@@ -408,7 +454,7 @@ watch(() => route.query.unit, (newUnit) => {
   }
 });
 </script>
-
+  
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
 
@@ -416,12 +462,13 @@ watch(() => route.query.unit, (newUnit) => {
   font-family: 'Inter', sans-serif;
 }
 
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
 .hide-scrollbar {
   -ms-overflow-style: none;
   scrollbar-width: none;
-  &::-webkit-scrollbar {
-    display: none;
-  }
 }
 
 .fade-enter-active {

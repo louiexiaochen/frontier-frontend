@@ -1,7 +1,7 @@
 /**
  * 阅读材料相关API
  */
-import { get, post, put, del } from '@/utils/http';
+import { get, post, put, del, patch } from '@/utils/http/index';
 
 /**
  * 获取阅读材料列表
@@ -10,6 +10,15 @@ import { get, post, put, del } from '@/utils/http';
  */
 export const getReadings = (params = {}) => {
   return get('/readings', params);
+};
+
+/**
+ * 获取课程单词列表
+ * @param {String|Number} unitId - 单元ID
+ * @returns {Promise} 课程单词列表
+ */
+export const getCourseWords = (Id) => {
+  return get('/course/words', { course_id: Id });
 };
 
 /**
@@ -86,4 +95,13 @@ export const getUnitProgress = (unitId) => {
  */
 export const getUnitWords = (unitId) => {
   return get('/unit/words', { unit_id: unitId });
+};
+
+/**
+ * 更新单词学习状态
+ * @param {Object} data - 更新数据 {status: number, word_id: string|number}
+ * @returns {Promise} 更新结果
+ */
+export const updateWordStatus = (data) => {
+  return patch('/word/update', data);
 };

@@ -1,7 +1,7 @@
 /**
  * 词汇相关API
  */
-import { get, post, put, del } from '@/utils/http';
+import { get, post, put, del } from '@/utils/http/index';
 
 /**
  * 获取词汇列表

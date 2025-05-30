@@ -157,6 +157,18 @@ export const post = (url, data = {}, config = {}) => {
 };
 
 /**
+ * PATCH请求
+ * @param {string} url - 请求地址
+ * @param {Object} data - 请求数据
+ * @param {Object} config - 额外配置
+ * @returns {Promise} 请求Promise
+ */
+export const patch = (url, data = {}, config = {}) => {
+  return http.patch(url, data, config);
+};
+
+
+/**
  * PUT请求
  * @param {string} url - 请求地址
  * @param {Object} data - 请求数据

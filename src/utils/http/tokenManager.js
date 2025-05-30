@@ -7,23 +7,27 @@
 const TOKEN_KEY = 'auth_token';
 
 /**
- * 保存token到localStorage
- * @param {string} token - 认证token
- */
-export const saveToken = (token) => {
-  localStorage.setItem(TOKEN_KEY, token);
-};
-
-/**
- * 从localStorage获取token
- * @returns {string|null} 认证token或null
+ * 获取token
+ * @returns {string|null} token
  */
 export const getToken = () => {
   return localStorage.getItem(TOKEN_KEY);
 };
 
 /**
- * 清除localStorage中的token
+ * 设置token
+ * @param {string} token 
+ */
+export const setToken = (token) => {
+  if (!token) {
+    removeToken();
+    return;
+  }
+  localStorage.setItem(TOKEN_KEY, token);
+};
+
+/**
+ * 移除token
  */
 export const removeToken = () => {
   localStorage.removeItem(TOKEN_KEY);
@@ -31,7 +35,7 @@ export const removeToken = () => {
 
 /**
  * 检查是否有token
- * @returns {boolean} 是否存在token
+ * @returns {boolean}
  */
 export const hasToken = () => {
   return !!getToken();
