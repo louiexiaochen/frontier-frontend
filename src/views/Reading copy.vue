@@ -220,7 +220,6 @@ const fetchVocabularyProgress = async () => {
       units.value = formattedUnits;
     } else {
       console.error('获取单元信息失败');
-      showToast('获取单元信息失败，显示默认数据', 'error');
     }
   } catch (error) {
     console.error('获取单元信息出错:', error);

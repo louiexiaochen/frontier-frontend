@@ -1,10 +1,10 @@
 <template>
-  <div class="signup-modal" v-if="show">
-    <div class="modal-backdrop" @click="closeModal"></div>
+  <div class="signup-modal" v-if="modalStore.showSignupModal">
+    <div class="modal-backdrop" @click="modalStore.closeSignupModal"></div>
     <div class="modal-container">
       <div class="signup-card">
         <div class="close-button-container">
-          <button class="close-button" @click="closeModal">×</button>
+          <button class="close-button" @click="modalStore.closeSignupModal">×</button>
         </div>
         
         <h1 class="signup-title">{{ $t('signup.title') }}</h1>
@@ -84,12 +84,12 @@
             {{ isLoading ? $t('signup.creating') : $t('signup.createAccount') }}
           </button>
           
-          <button type="button" class="google-signup-button" @click="handleGoogleSignup">
+          <!-- <button type="button" class="google-signup-button" @click="handleGoogleSignup">
             {{ $t('signup.signupWithGoogle') }}
           </button>
-          
+           -->
           <div class="login-link">
-            {{ $t('signup.haveAccount') }} <a href="#" @click.prevent="toggleLogin">{{ $t('login.title') }}</a>
+            {{ $t('signup.haveAccount') }} <a href="#" @click.prevent="modalStore.openLoginModal">{{ $t('login.title') }}</a>
           </div>
         </form>
       </div>
@@ -98,88 +98,48 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue';
-import { register } from '@/api/user';
+import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import message from '@/utils/message';
 import { useUserStore } from '@/stores/user';
+import { useModalStore } from '@/stores/modal';
 import { useRouter } from 'vue-router';
 
 const { t } = useI18n();
 const userStore = useUserStore();
+const modalStore = useModalStore();
 const router = useRouter();
 
-const props = defineProps({
-  show: {
-    type: Boolean,
-    default: false
-  }
-});
-
-const emit = defineEmits(['close', 'showLogin']);
-
 const username = ref('');
-const email = ref(''); // 添加邮箱字段
+const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
 const isLoading = ref(false);
 const errorMessage = ref('');
 
 const handleSignup = async () => {
-  try {
-    isLoading.value = true;
-    errorMessage.value = '';
-    
-    const response = await register({
-      username: username.value,
-      email: email.value, // 添加邮箱参数
-      password: password.value
-    });
-    
-    console.log('注册响应:', response);
-    
-    // 使用Pinia store处理用户登录状态
-    if (response.code === 0) {
-      // 保存token到store
-      userStore.token = response.data.token;
-      localStorage.setItem('token', response.data.token);
-      
-      // 加载用户信息
-      await userStore.loadUser();
-      
-      // 显示成功消息
-      message.success(response.message || t('signup.successMessage'));
-      
-      // 注册成功后关闭模态窗
-      closeModal();
-      
-      // 刷新页面以显示登录状态
-      window.location.reload();
-    } else {
-      // 错误消息已经由拦截器处理，这里只需要设置本地错误状态
-      errorMessage.value = response.message || t('signup.errorMessage');
-    }
-  } catch (error) {
-    console.error('注册失败:', error);
-    errorMessage.value = error.message || t('signup.errorMessage');
-  } finally {
-    isLoading.value = false;
+  isLoading.value = true;
+  errorMessage.value = '';
+  
+  const success = await userStore.register({
+    username: username.value,
+    email: email.value,
+    password: password.value
+  });
+  isLoading.value = false;
+  if (success) {
+    modalStore.closeSignupModal();
+    username.value = '';
+    email.value = '';
+    password.value = '';
+  } else {
+    showToast(t('signup.errorMessage'));
   }
 };
 
 const handleGoogleSignup = () => {
-  // 实现Google注册逻辑
   console.log('Sign up with Google');
   message.info(t('signup.googleRedirect'));
-};
-
-const toggleLogin = () => {
-  // 切换到登录模态窗
-  emit('showLogin');
-};
-
-const closeModal = () => {
-  emit('close');
 };
 </script>
 

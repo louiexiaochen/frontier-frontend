@@ -1,21 +1,16 @@
 <template>
-  <div class="login-modal" v-if="show">
-    <div class="modal-backdrop" @click="closeModal"></div>
+  <div class="login-modal" v-if="modalStore.showLoginModal">
+    <div class="modal-backdrop" @click="modalStore.closeLoginModal"></div>
     <div class="modal-container">
       <div class="login-card">
         <div class="close-button-container">
-          <button class="close-button" @click="closeModal">×</button>
+          <button class="close-button" @click="modalStore.closeLoginModal">×</button>
         </div>
         
         <h1 class="login-title">{{ $t('login.title') }}</h1>
         <p class="login-subtitle">{{ $t('login.subtitle') }}</p>
         
         <form @submit.prevent="handleLogin">
-          <!-- 错误消息显示 -->
-          <div class="error-message" v-if="errorMessage">
-            {{ errorMessage }}
-          </div>
-          
           <div class="form-group">
             <label for="username">{{ $t('login.username') }}</label>
             <input 
@@ -75,13 +70,13 @@
             </div>
           </div>
           
-          <button type="submit" class="login-button" :disabled="isLoading">
-            {{ isLoading ? $t('login.loggingIn') : $t('login.loginButton') }}
+          <button type="submit" class="login-button" :disabled="userStore.isLoading">
+            {{ userStore.isLoading ? $t('login.loggingIn') : $t('login.loginButton') }}
           </button>
           
-          <button type="button" class="google-login-button" @click="handleGoogleLogin">
+          <!-- <button type="button" class="google-login-button" @click="handleGoogleLogin">
             {{ $t('login.loginWithGoogle') }}
-          </button>
+          </button> -->
           
           <div class="signup-link">
             {{ $t('login.noAccount') }} <a href="#" @click.prevent="toggleSignup">{{ $t('signup.title') }}</a>
@@ -93,78 +88,36 @@
 </template>
 
 <script setup>
-import { ref, defineProps, defineEmits } from 'vue';
-import { login } from '@/api/user';
-import message from '@/utils/message';
+import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/user';
-import { useRouter } from 'vue-router';
+import { useModalStore } from '@/stores/modal';
+import message from '@/utils/message';
 
 const { t } = useI18n();
 const userStore = useUserStore();
-const router = useRouter();
-
-const props = defineProps({
-  show: {
-    type: Boolean,
-    default: false
-  }
-});
-
-const emit = defineEmits(['close', 'showSignup']);
+const modalStore = useModalStore();
 
 const username = ref('');
 const password = ref('');
 const showPassword = ref(false);
-const isLoading = ref(false);
-const errorMessage = ref('');
 let passwordTooltip = null;
 
 const handleLogin = async () => {
   try {
-    isLoading.value = true;
-    errorMessage.value = '';
+    const success = await userStore.login(username.value, password.value);
     
-    const response = await login({
-      username: username.value,
-      password: password.value
-    });
-    
-    console.log('登录响应:', response);
-    
-    // 使用Pinia store处理用户登录状态
-    if (response.code==0) {
-      // 保存token到store
-      userStore.token = response.token;
-      localStorage.setItem('token', response.token);
-      
-      // 加载用户信息
-      await userStore.loadUser();
-      
-      // 显示成功消息
-      message.success(response.message || t('login.successMessage'));
-      
+    if (success) {
       // 登录成功后关闭模态窗
-      closeModal();
-      
-      // 刷新页面以显示登录状态
-      window.location.reload();
-    } else {
-      // 错误消息已经由拦截器处理，这里只需要设置本地错误状态
-      errorMessage.value = response.message || t('login.errorMessage');
+      modalStore.closeLoginModal();
+      // 清空表单
+      username.value = '';
+      password.value = '';
+      // 不需要刷新页面,因为已经在login方法中加载了用户信息
     }
   } catch (error) {
     console.error('登录失败:', error);
-    errorMessage.value = error.message || t('login.errorMessage');
-  } finally {
-    isLoading.value = false;
   }
-};
-
-const handleGoogleLogin = () => {
-  // 实现Google登录逻辑
-  console.log('Login with Google');
-  message.info(t('login.googleRedirect'));
 };
 
 const handleForgotPassword = () => {
@@ -175,11 +128,9 @@ const handleForgotPassword = () => {
 
 const toggleSignup = () => {
   // 切换到注册模态窗
-  emit('showSignup');
-};
-
-const closeModal = () => {
-  emit('close');
+  modalStore.closeLoginModal();
+  // TODO: 打开注册模态窗
+  modalStore.openSignupModal();
 };
 
 // 显示密码提示工具提示
@@ -208,7 +159,6 @@ const hidePasswordTooltip = () => {
   }
 };
 
-// 切换密码可见性并隐藏提示
 const togglePasswordVisibility = () => {
   showPassword.value = !showPassword.value;
   hidePasswordTooltip();

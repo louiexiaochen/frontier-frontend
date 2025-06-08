@@ -25,7 +25,6 @@ export const register = async (data) => {
  */
 export const login = async (data) => {
   const response = await post('/user/login', data);
-  console.log(response);
   
   // 适配新的响应格式，token在data字段中，code为0表示成功
   if (response && response.code === 0 && response.data && response.data.token) {

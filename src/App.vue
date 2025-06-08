@@ -1,16 +1,35 @@
 <template>
   <router-view />
+  <LoginModal />
+  <SignupModal />
 </template>
 
 <script setup>
 import { onMounted } from 'vue'
 import './assets/css/global.css'
+import LoginModal from '@/components/LoginModal.vue'
+import SignupModal from '@/components/SignupModal.vue'
+import { useUserStore } from '@/stores/user'
+import { getToken } from '@/utils/http/tokenManager'
+
+// 获取用户store
+const userStore = useUserStore()
 
 onMounted(() => {
-  // 不再设置overflow为auto
-  // document.documentElement.style.overflow = 'auto'
-  // document.body.style.overflow = 'auto'
+  // 初始化用户信息
+  initUserInfo()
 })
+
+// 初始化用户信息
+const initUserInfo = async () => {
+  const token = getToken()
+  try {
+    await userStore.loadUser()
+    console.log('用户信息加载成功')
+  } catch (error) {
+    console.error('加载用户信息失败:', error)
+  }
+}
 </script>
 
 <style>

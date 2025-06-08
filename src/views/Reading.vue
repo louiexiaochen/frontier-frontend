@@ -12,7 +12,16 @@
       leave-to-class="opacity-0"
     >
       <div class="space-y-4" v-if="!selectedUnitId">
+        <!-- 空状态显示 -->
+        <div v-if="units.length === 0" class="flex flex-col items-center justify-center min-h-[400px] bg-[#191919] rounded-[20px] p-8">
+          <div class="text-6xl mb-4">📚</div>
+          <h3 class="text-2xl text-white font-bold mb-2">暂无学习单元</h3>
+          <p class="text-white/60 text-center">目前还没有可用的学习单元<br>请稍后再来查看</p>
+        </div>
+        
+        <!-- 现有的单元列表内容 -->
         <div 
+          v-else
           v-for="unit in units" 
           :key="unit.id"
           class="relative w-full h-auto min-h-[103px] bg-[#191919] rounded-[20px] p-4 md:p-6 cursor-pointer transition-all duration-300 hover:bg-[#222222] flex flex-col md:flex-row items-start md:items-center"
@@ -119,43 +128,57 @@
         </div>
       </div>
         <div class="relative min-h-full pb-8 w-full max-w-[600px] m-auto mt-10 md:mt-20">
-          <div 
-            class="w-[8rem] md:w-[10rem] h-[8rem] md:h-[10rem] bg-white rounded-2xl absolute flex flex-col items-center justify-center cursor-pointer transition-all duration-300 overflow-hidden hover:-translate-y-1.5 hover:shadow-lg"
-            v-for="(lesson, index) in filteredLessons" 
-            :key="lesson.id" 
-            :class="{ 
-              'opacity-50 cursor-not-allowed hover:transform-none': lesson.locked, 
-              'left-0': isLeftSide(index), 
-              'right-0': !isLeftSide(index) 
-            }" 
-            :style="getCardStyle(index)"
-            @click="handleLessonClick(lesson)"
-          >
-            <div class="opacity-20 z-0">
-              <star-icon class="text-gray-800" :size="80" />
-            </div>
-            <div class="text-xl md:text-2xl font-bold text-gray-800 z-10">{{ lesson.name }}</div>
-            <div class="w-[70%] h-2 bg-gray-200 rounded-full overflow-hidden z-10 absolute bottom-5">
-              <div v-if="!lesson.locked" class="h-full bg-gray-800 rounded-full transition-all duration-500" :style="{ width: `${lesson.progress}%` }"></div>
-            </div>
+          <!-- 空状态显示 -->
+          <div v-if="filteredLessons.length === 0" class="flex flex-col items-center justify-center min-h-[400px] bg-[#191919] rounded-[20px] p-8">
+            <div class="text-6xl mb-4">📖</div>
+            <h3 class="text-2xl text-white font-bold mb-2">暂无课程</h3>
+            <p class="text-white/60 text-center">该单元还没有任何课程<br>点击下方新建按钮开始学习</p>
+            <button 
+              @click="createNewCourse"
+              class="mt-6 px-6 py-3 bg-white text-gray-800 rounded-full font-bold hover:bg-gray-100 transition-colors"
+              :class="{ 'opacity-50 cursor-not-allowed': isNewLessonDisabled }"
+            >
+              新建课程
+            </button>
           </div>
 
-          <!-- 新建关卡卡片 -->
-          <div 
-            class="w-[8rem] md:w-[10rem] h-[8rem] md:h-[10rem] bg-white rounded-2xl absolute flex flex-col items-center justify-center cursor-pointer transition-all duration-300 overflow-hidden hover:-translate-y-1.5 hover:shadow-lg"
-            :class="{ 
-              'left-0': isLeftSide(filteredLessons.length), 
-              'right-0': !isLeftSide(filteredLessons.length),
-              'opacity-50 cursor-not-allowed hover:transform-none': isNewLessonDisabled
-            }" 
-            :style="getCardStyle(filteredLessons.length)"
-            @click="isNewLessonDisabled ? null : createNewCourse"
-          >
-            <div class="opacity-20 z-0">
-              <PlusIcon class="text-gray-800" :size="80" />
+          <!-- 现有的课程列表内容 -->
+          <div v-else class="relative" :style="{ height: containerHeight }">
+            <div 
+              class="w-[8rem] md:w-[10rem] h-[8rem] md:h-[10rem] bg-white rounded-2xl absolute flex flex-col items-center justify-center cursor-pointer transition-all duration-300 overflow-hidden hover:-translate-y-1.5 hover:shadow-lg"
+              v-for="(lesson, index) in filteredLessons" 
+              :key="lesson.id" 
+              :class="{ 
+                'opacity-50 cursor-not-allowed hover:transform-none': lesson.locked, 
+                'left-0': isLeftSide(index), 
+                'right-0': !isLeftSide(index) 
+              }" 
+              :style="getCardStyle(index)"
+              @click="handleLessonClick(lesson)"
+            >
+              <div class="z-0" :class="lesson.progress >= 100 ? 'opacity-100' : 'opacity-20'">
+                <star-icon :color="lesson.progress >= 100 ? '#4A99E9' : '#1f2937'" :size="80" />
+              </div>
+              <div class="text-xl md:text-2xl font-bold text-gray-800 z-10 my-[5%]">{{ lesson.name }}</div>
+              <div class="w-[70%] h-2 bg-gray-200 rounded-full overflow-hidden z-10">
+                <div v-if="!lesson.locked" class="h-full bg-gray-800 rounded-full transition-all duration-500" :style="{ width: `${lesson.progress}%` }"></div>
+              </div>
             </div>
-            <div class="text-xl md:text-2xl font-bold text-gray-800 z-10">新建关卡</div>
-            <div v-if="isNewLessonDisabled" class="absolute bottom-2 text-sm text-red-500">需完成上一关卡</div>
+            
+            <!-- 新建课程按钮 -->
+            <div 
+              class="w-[8rem] md:w-[10rem] h-[8rem] md:h-[10rem] bg-[#191919] rounded-2xl absolute flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg"
+              :class="{ 
+                'opacity-50 cursor-not-allowed hover:transform-none': isNewLessonDisabled, 
+                'left-0': isLeftSide(filteredLessons.length), 
+                'right-0': !isLeftSide(filteredLessons.length) 
+              }" 
+              :style="getCardStyle(filteredLessons.length)"
+              @click="createNewCourse"
+            >
+              <PlusIcon class="text-white" :size="40" />
+              <div class="text-white text-lg mt-2">新建课程</div>
+            </div>
           </div>
         </div>
       </div>
@@ -201,36 +224,42 @@ const allLessons = ref([]);
 const currentUnit = computed(() => units.value.find(unit => unit.id === selectedUnitId.value));
 const filteredLessons = computed(() => allLessons.value);
 const isNewLessonDisabled = computed(() => {
-  const lessons = filteredLessons.value;
-  if (lessons.length === 0) return false;
-  const lastLesson = lessons[lessons.length - 1];
-  return lastLesson?.progress < CARD_CONFIG.minProgress;
+  // 移除进度限制，使用户总是可以新建课程
+  return false;
+});
+const containerHeight = computed(() => {
+  // 计算容器的总高度，加上额外的空间用于hover效果
+  const totalCards = filteredLessons.value.length + 1; // +1 是为了新建按钮
+  return `${totalCards * (CARD_CONFIG.size + CARD_CONFIG.verticalGap) + 24}px`;
 });
 
 // ==================== 布局计算函数 ====================
 const isLeftSide = index => index % 2 === 0;
 const getCardStyle = index => ({
-  top: `${index * (CARD_CONFIG.size + CARD_CONFIG.verticalGap)}px`
+  top: `${index * (CARD_CONFIG.size + CARD_CONFIG.verticalGap)}px`,
+  marginBottom: '1.5rem'
 });
 
 // ==================== 数据加载函数 ====================
 const fetchVocabularyProgress = async () => {
+  console.log('开始获取单元数据...');
   try {
     const response = await getAllUnits();
+    console.log('获取单元响应:', response);
     if (response.code === 0) {
       units.value = formatUnitsData(response.data);
+      console.log('单元数据格式化完成:', units.value);
     } else {
-      showToast('获取单元信息失败，显示默认数据', 'error');
+      console.error('获取单元数据失败:', response);
     }
   } catch (error) {
     console.error('获取单元信息出错:', error);
-    showToast('网络错误，显示默认数据', 'error');
   }
 };
 
 const formatUnitsData = (data) => {
-  return data.map(unit => ({
-    id: unit.id,
+  return data.units.map(unit => ({
+    id: unit.id.toString(),
     title: unit.name,
     locked: unit.level > 2,
     progress: calculateProgress(unit.progresses?.words_learned, unit.progresses?.words_total),
@@ -243,29 +272,51 @@ const formatUnitsData = (data) => {
 
 const calculateProgress = (learned = 0, total = 0) => {
   if (!total) return 0;
-  return Math.round((learned / total) * 100);
+  // 确保进度不超过100%
+  return Math.min(100, Math.round((learned / total) * 100));
+};
+
+// ==================== 本地存储功能 ====================
+const STORAGE_KEY = 'lastOpenedUnit';
+
+const saveLastOpenedUnit = (unitId) => {
+  try {
+    localStorage.setItem(STORAGE_KEY, unitId.toString());
+  } catch (error) {
+    console.error('保存上次打开的单元失败:', error);
+  }
+};
+
+const getLastOpenedUnit = () => {
+  try {
+    return localStorage.getItem(STORAGE_KEY);
+  } catch (error) {
+    console.error('获取上次打开的单元失败:', error);
+    return null;
+  }
 };
 
 // ==================== 交互处理函数 ====================
 const selectUnit = async (unitId) => {
+  console.log('选择单元:', unitId);
   const unit = units.value.find(u => u.id === unitId);
-  if (!unit || unit.locked) return;
+  if (!unit || unit.locked) {
+    console.warn('单元不存在或已锁定:', unitId);
+    return;
+  }
   
   try {
+    console.log('获取单元课程:', unitId);
     const response = await getUnitCourses(unitId);
     if (response.code === 0) {
-      handleUnitCoursesResponse(response.data, unitId);
+      allLessons.value = formatCoursesData(response.data);
       updateSelectedUnit(unitId);
+      console.log('成功加载单元课程:', unitId);
     }
   } catch (error) {
     console.error('选择单元失败:', error);
     showToast('选择单元失败，请稍后重试', 'error');
   }
-};
-
-const handleUnitCoursesResponse = (coursesData, unitId) => {
-  allLessons.value = formatCoursesData(coursesData);
-  updateUnitProgress(coursesData, unitId);
 };
 
 const formatCoursesData = (courses) => {
@@ -282,31 +333,18 @@ const formatCoursesData = (courses) => {
   }));
 };
 
-const updateUnitProgress = (coursesData, unitId) => {
-  const totalWordsLearned = coursesData.reduce((sum, course) => sum + course.words_learned, 0);
-  const totalWords = coursesData.reduce((sum, course) => sum + course.words_total, 0);
-  
-  const unitIndex = units.value.findIndex(u => u.id === unitId);
-  if (unitIndex !== -1) {
-    units.value[unitIndex] = {
-      ...units.value[unitIndex],
-      progress: calculateProgress(totalWordsLearned, totalWords),
-      words: `${totalWordsLearned}/${totalWords}`
-    };
-  }
-};
-
 const updateSelectedUnit = (unitId) => {
+  console.log('更新选中的单元:', unitId);
   selectedUnitId.value = unitId;
   router.push({ 
     path: '/home/reading', 
     query: { unit: unitId } 
   });
+  console.log('更新路由参数:', { unit: unitId });
+  saveLastOpenedUnit(unitId);
 };
 
 const createNewCourse = async () => {
-  if (isNewLessonDisabled.value) return;
-  
   try {
     const response = await createUnitProgress(selectedUnitId.value.toString());
     if (response.code === 0 && response.data) {
@@ -378,34 +416,86 @@ const closeToast = (toast) => {
 };
 
 // ==================== 生命周期钩子 ====================
-onMounted(() => {
-  fetchVocabularyProgress();
+onMounted(async () => {
+  console.log('组件挂载，开始初始化...');
+  await fetchVocabularyProgress();
+  console.log('单元数据加载完成，准备初始化路由');
   initializeFromRoute();
 });
 
 const initializeFromRoute = () => {
+  // 优先使用URL中的unit参数
   const { unit } = route.query;
+  console.log('从URL获取单元参数:', unit, typeof unit);
+  
   if (unit) {
-    const unitId = parseInt(unit);
-    const validUnit = units.value.find(u => u.id === unitId && !u.locked);
-    if (validUnit) {
-      selectedUnitId.value = unitId;
+    // 确保单元ID为字符串类型
+    const unitId = unit;
+    console.log('从URL初始化单元:', unitId);
+    selectUnitIfValid(unitId);
+    return;
+  }
+  
+  // 如果URL中没有unit参数，尝试从本地存储获取
+  const lastOpenedUnit = getLastOpenedUnit();
+  console.log('从本地存储获取上次打开的单元:', lastOpenedUnit);
+  
+  if (lastOpenedUnit) {
+    // 确保单元ID为字符串类型
+    const unitId = lastOpenedUnit;
+    console.log('从本地存储初始化单元:', unitId);
+    selectUnitIfValid(unitId);
+  }
+};
+
+const selectUnitIfValid = async (unitId) => {
+  // 等待units加载完成
+  if (units.value.length === 0) {
+    console.log('单元数据尚未加载完成，等待100ms后重试...');
+    setTimeout(() => selectUnitIfValid(unitId), 100);
+    return;
+  }
+  
+  console.log('尝试打开单元ID:', unitId, '当前可用单元:', units.value);
+  // 使用字符串比较，确保ID类型一致
+  const validUnit = units.value.find(u => {
+    console.log('比较单元:', u.id, typeof u.id, '目标ID:', unitId.toString(), typeof unitId.toString());
+    return u.id === unitId.toString() && !u.locked;
+  });
+  
+  if (validUnit) {
+    console.log('找到有效单元:', validUnit);
+    try {
+      // 直接获取课程数据
+      const response = await getUnitCourses(unitId.toString());
+      if (response.code === 0) {
+        allLessons.value = formatCoursesData(response.data);
+        // 设置选中的单元ID
+        selectedUnitId.value = unitId.toString();
+        // 保存到本地存储
+        saveLastOpenedUnit(unitId.toString());
+        console.log('成功加载单元课程，单元ID:', unitId.toString());
+      }
+    } catch (error) {
+      console.error('加载单元课程失败:', error);
     }
+  } else {
+    console.warn('未找到有效单元或单元已锁定，ID:', unitId.toString());
   }
 };
 
 // ==================== 路由监听 ====================
 watch(() => route.query.unit, (newUnit) => {
+  console.log('路由参数变化 unit:', newUnit, typeof newUnit);
   if (!newUnit) {
     selectedUnitId.value = null;
     return;
   }
   
-  const unitId = parseInt(newUnit);
-  const validUnit = units.value.find(u => u.id === unitId && !u.locked);
-  if (validUnit) {
-    selectedUnitId.value = unitId;
-  }
+  // 直接使用字符串类型的单元ID
+  const unitId = newUnit;
+  console.log('监听到路由变化，准备选择单元:', unitId);
+  selectUnitIfValid(unitId);
 });
 </script>
 

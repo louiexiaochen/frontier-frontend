@@ -335,8 +335,8 @@ const fetchEssayData = async () => {
       
       // 更新文章数据
       essayData.value = {
-        title: apiData.article.title,
-        paragraphs: apiData.article.content.split('\n\n'), // 按段落分割文章内容
+        title: apiData.title,
+        paragraphs: apiData.content.split('\n\n'), // 假设段落由两个换行符分隔
         questionModules: formatQuestionsFromApi(apiData.questions)
       };
       
@@ -368,106 +368,100 @@ const formatQuestionsFromApi = (apiQuestions) => {
   const questionsByType = {};
   
   apiQuestions.forEach(q => {
-    // 根据题型JSON格式中的type字段进行分类
-    const type = q.type || 'single_choice'; // 默认为单选题
-    if (!questionsByType[type]) {
-      questionsByType[type] = [];
+    if (!questionsByType[q.type]) {
+      questionsByType[q.type] = [];
     }
-    questionsByType[type].push(q);
+    questionsByType[q.type].push(q);
   });
   
   // 转换为组件需要的格式
   const modules = [];
   
-  // 处理判断题 (true_false)
-  if (questionsByType['true_false']) {
+  // 处理判断题
+  if (questionsByType['true-false']) {
     modules.push({
       type: 'true-false',
       data: {
-        questions: questionsByType['true_false'].map(q => ({
-          id: q.id.toString(),
-          text: q.text,
-          correctAnswer: q.correctAnswer // 0:false, 1:true, -1:not given
+        questions: questionsByType['true-false'].map(q => ({
+          id: q.id,
+          text: q.content
         }))
       }
     });
   }
   
-  // 处理单选题 (single_choice)
-  if (questionsByType['single_choice']) {
+  // 处理单选题
+  if (questionsByType['single-choice']) {
     modules.push({
       type: 'single-choice',
       data: {
-        questions: questionsByType['single_choice'].map(q => ({
-          id: q.id.toString(),
-          text: q.text,
-          options: q.options,
-          correctAnswer: q.correctAnswer
+        questions: questionsByType['single-choice'].map(q => ({
+          id: q.id,
+          text: q.content,
+          options: q.options
         }))
       }
     });
   }
   
-  // 处理多选题 (double_choice)
-  if (questionsByType['double_choice']) {
+  // 处理多选题
+  if (questionsByType['multiple-choice']) {
     modules.push({
       type: 'multiple-choice',
       data: {
-        questions: questionsByType['double_choice'].map(q => ({
-          id: q.id.toString(),
-          text: q.text,
-          options: q.options,
-          correctAnswers: q.correctAnswers
+        questions: questionsByType['multiple-choice'].map(q => ({
+          id: q.id,
+          text: q.content,
+          options: q.options
         }))
       }
     });
   }
   
-  // 处理填空题 (fill_in_blanks)
-  if (questionsByType['fill_in_blanks']) {
+  // 处理填空题
+  if (questionsByType['fill-in-blanks']) {
     modules.push({
       type: 'fill-in-blanks',
       data: {
-        questions: questionsByType['fill_in_blanks'].map(q => ({
-          id: q.id.toString(),
-          text: q.text.replace('[BLANK]', '[BLANK]'),
-          correctAnswer: q.correctAnswer,
-          maxWords: 5 // 默认允许最多5个单词
+        questions: questionsByType['fill-in-blanks'].map(q => ({
+          id: q.id,
+          text: q.content,
+          maxWords: q.max_words || 5
         }))
       }
     });
   }
   
-  // 处理匹配题 (matching)
+  // 处理匹配题
   if (questionsByType['matching']) {
     const matchingQuestions = questionsByType['matching'];
     if (matchingQuestions.length > 0) {
-      const q = matchingQuestions[0]; // 获取第一个匹配题
       modules.push({
         type: 'matching',
         data: {
-          passageTitle: q.title || "Passage Title",
-          passage: q.text || "",
-          options: q.words.map(word => word.content),
-          correctMapping: q.correct_mapping || {}
+          questions: matchingQuestions.map(q => ({
+            id: q.id,
+            text: q.content
+          })),
+          sections: matchingQuestions[0].options || []
         }
       });
     }
   }
   
-  // 处理段落标题匹配题 (paragraph_heading)
-  if (questionsByType['paragraph_heading']) {
-    const paragraphQuestions = questionsByType['paragraph_heading'];
+  // 处理段落标题匹配题
+  if (questionsByType['paragraph-heading']) {
+    const paragraphQuestions = questionsByType['paragraph-heading'];
     if (paragraphQuestions.length > 0) {
-      const q = paragraphQuestions[0]; // 获取第一个段落标题匹配题
       modules.push({
         type: 'paragraph-heading',
         data: {
-          headings: q.headings.map(heading => ({ 
-            text: heading.content,
-            id: heading.id
+          paragraphs: paragraphQuestions.map((q, index) => ({
+            id: q.id,
+            label: String.fromCharCode(65 + index), // A, B, C...
+            preview: q.content.substring(0, 50) + '...'
           })),
-          correctMapping: q.correct_mapping || {}
+          headings: paragraphQuestions[0].options || []
         }
       });
     }

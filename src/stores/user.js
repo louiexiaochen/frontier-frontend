@@ -18,13 +18,13 @@ export const useUserStore = defineStore('user', () => {
   // 加载用户信息
   async function loadUser() {
     if (!token.value) return
-
     try {
       isLoading.value = true
       error.value = null
       
       const response = await getUserInfo()
       user.value = response.data
+      console.log('加载用户信息',response); 
     } catch (err) {
       error.value = err.response?.data?.message || '加载用户信息失败'
       // 如果令牌无效，清除它
@@ -41,21 +41,15 @@ export const useUserStore = defineStore('user', () => {
     try {
       isLoading.value = true
       error.value = null
-      
       const response = await apiLogin({
         username:email,
         password
       })
-      
-      // 检查响应是否成功
-      if (response.success && String(response.code).startsWith('2')) {
-        // 适配新的响应格式，token在data字段中
+      console.log('登录响应',response);
+      if (response) {
         token.value = response.data.token
         localStorage.setItem('token', token.value)
-        
-        // 登录后加载用户信息
         await loadUser()
-        
         return true
       } else {
         error.value = response.message || '登录失败'
@@ -74,18 +68,12 @@ export const useUserStore = defineStore('user', () => {
     try {
       isLoading.value = true
       error.value = null
-      
       const response = await apiRegister(userData)
-      
       // 检查响应是否成功
-      if (response.success && String(response.code).startsWith('2')) {
-        // 适配新的响应格式，token在data字段中
+      if (response) {
         token.value = response.data.token
         localStorage.setItem('token', token.value)
-        
-        // 注册后加载用户信息
         await loadUser()
-        
         return true
       } else {
         error.value = response.message || '注册失败'

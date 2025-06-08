@@ -14,4 +14,5 @@ app.config.globalProperties.$message = message
 app.use(pinia)
   .use(router)
   .use(i18n)
-  .mount('#app')
+
+app.mount('#app')

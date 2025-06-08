@@ -32,7 +32,7 @@
           <div class="flex-1 flex flex-col justify-between gap-8 will-change-transform pb-4 max-w-[800px] m-auto">
             <!-- 单词展示区域 -->
             <div v-if="wordData.currentWord" class="text-center animate-fadeIn">
-              <h1 class="text-5xl font-bold mb-2 bg-gradient-to-r from-[#4A99E9] to-[#5C2797] bg-clip-text text-transparent will-change-transform">
+              <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-[#4A99E9] to-[#5C2797] bg-clip-text text-transparent will-change-transform leading-relaxed py-2">
                 {{ wordData.currentWord.content }}
               </h1>
               <div class="flex items-center justify-center gap-2 mb-4">
@@ -180,7 +180,7 @@ import { ref, computed, reactive, onMounted, onBeforeUnmount, nextTick } from 'v
 import { useRouter, useRoute } from 'vue-router';
 import BackIcon from '../components/icons/BackIcon.vue';
 import EnglishPronunciationButton from '../components/icons/EnglishPronunciationButton.vue';
-import { getCourseWords, updateWordStatus } from '@/api/readings';
+import { getCourseWords, updateWordStatus, completeCourse } from '@/api/readings';
 
 // ==================== 常量定义 ====================
 const WORD_STATUS = {
@@ -209,16 +209,16 @@ const wordData = reactive({
       totalWords: 0
     }
   },
-
+  
   get highlightedExample() {
     const { example } = this.currentWord ?? {};
     if (!example?.text || !example?.highlight) return '';
     
     try {
-      return example.text.replace(
-        example.highlight, 
-        `<span class='text-[#4A99E9] font-semibold'>${example.highlight}</span>`
-      );
+    return example.text.replace(
+      example.highlight, 
+      `<span class='text-[#4A99E9] font-semibold'>${example.highlight}</span>`
+    );
     } catch {
       return example.text;
     }
@@ -244,7 +244,7 @@ const hasExampleOrRelatedWords = computed(() =>
 );
 
 // ==================== 工具函数 ====================
-const formatWord = (word) => ({
+const formatWord = (word, studyIds = []) => ({
   id: word.id,
   content: word.content,
   phonetic: word.phonetic?.trim() ?? '',
@@ -262,19 +262,24 @@ const formatWord = (word) => ({
       partOfSpeech: rw.partOfSpeech?.trim()
     })),
   wordFamily: word.word_family?.trim() ?? '',
-  status: word.study_status?.status === 1 ? WORD_STATUS.KNOWN : WORD_STATUS.UNLEARNED
+  status: studyIds.includes(word.id) ? WORD_STATUS.KNOWN : WORD_STATUS.UNLEARNED
 });
 
 // ==================== 单词学习模块 ====================
 const wordLearning = {
+  // 当前响应类型（know/fuzzy/unknown）
+  currentResponse: null,
+  
   async loadWordData() {
     try {
       const response = await getCourseWords(route.params.id);
       if (response.code !== 0 || !response.data) {
         throw new Error(response.msg || '获取单词列表失败');
       }
-
-      const formattedWords = response.data.map(formatWord);
+        
+      const formattedWords = response.data.words.map(word => 
+        formatWord(word, response.data.study_ids)
+      );
       
       [wordData.knownQueue, wordData.learningQueue] = formattedWords.reduce(
         (acc, word) => {
@@ -299,7 +304,8 @@ const wordLearning = {
       showToast('获取单词列表失败，请稍后重试', 'error');
     }
   },
-
+  
+  // 第一阶段：处理用户对单词熟悉度的选择
   async handleResponse(type) {
     if (!wordData.currentWord) return;
 
@@ -309,20 +315,16 @@ const wordLearning = {
       unknown: WORD_STATUS.UNKNOWN
     }[type];
 
+    // 记录当前选择的类型，用于第二阶段操作
+    this.currentResponse = type;
+    
+    // 更新单词状态
     await this.updateWordStatus(status);
     
-    if (type === 'know') {
-      this.moveToKnownQueue();
-      // 更新会话进度
-      sessionProgress.learned++;
-      sessionProgress.needsSaving = true;
-    } else {
-      this.moveToEndOfLearningQueue();
-    }
-    
+    // 显示释义，进入第二阶段，但不切换单词
     ui.showDefinition = true;
   },
-
+  
   async updateWordStatus(status) {
     try {
       await updateWordStatus({
@@ -358,29 +360,30 @@ const wordLearning = {
     wordData.currentWord = wordData.learningQueue[0] ?? null;
   },
 
+  // 第二阶段：处理"下一词"按钮点击
   async handleNextWord() {
-    ui.showDefinition = false;
-    await nextTick();
-  },
-
-  async handleWrong() {
-    if (!wordData.currentWord) return;
-
-    await this.updateWordStatus(WORD_STATUS.UNKNOWN);
-    
-    const index = wordData.knownQueue.findIndex(w => w.id === wordData.currentWord.id);
-    if (index !== -1) {
-      const [word] = wordData.knownQueue.splice(index, 1);
-      word.status = WORD_STATUS.UNKNOWN;
-      wordData.learningQueue.push(word);
-      wordData.currentWord = wordData.learningQueue[0] ?? null;
-      
-      const { learningState } = wordData;
-      learningState.learnedWords = wordData.knownQueue.length;
-      learningState.totalVocabularyProgress.totalLearnedWords = wordData.knownQueue.length;
+    // 根据第一阶段的选择执行相应的队列操作
+    if (this.currentResponse === 'know') {
+      this.moveToKnownQueue();
+      // 更新会话进度
+      sessionProgress.learned++;
+      sessionProgress.needsSaving = true;
+    } else {
+      this.moveToEndOfLearningQueue();
     }
     
-    await this.handleNextWord();
+    // 重置UI状态，准备下一个单词的第一阶段
+    ui.showDefinition = false;
+    this.currentResponse = null;
+    await nextTick();
+  },
+  
+  // 第二阶段：处理"记错了"按钮点击
+  async handleWrong() {
+    // 用户发现自己对单词的熟悉程度判断错误
+    // 重置UI状态，返回到第一阶段重新选择
+    ui.showDefinition = false;
+    this.currentResponse = null;
   }
 };
 
@@ -401,25 +404,25 @@ const speech = {
   playSpeech(text) {
     if (!text || !('speechSynthesis' in window)) return;
 
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = 'en-US';
-    
-    const voices = window.speechSynthesis.getVoices();
-    const englishVoice = voices.find(voice => 
-      voice.lang.includes('en') && voice.name.includes('Female')
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = 'en-US';
+      
+      const voices = window.speechSynthesis.getVoices();
+      const englishVoice = voices.find(voice => 
+        voice.lang.includes('en') && voice.name.includes('Female')
     ) ?? voices.find(voice => voice.lang.includes('en'));
-    
-    if (englishVoice) {
-      utterance.voice = englishVoice;
-    }
-    
+      
+      if (englishVoice) {
+        utterance.voice = englishVoice;
+      }
+      
     Object.assign(utterance, {
       volume: 1,
       rate: 0.9,
       pitch: 1
     });
     
-    window.speechSynthesis.speak(utterance);
+      window.speechSynthesis.speak(utterance);
   }
 };
 
@@ -439,51 +442,37 @@ onBeforeUnmount(() => {
 
 // ==================== 导航模块 ====================
 const navigation = {
-  get unitId() {
-    const id = lessonId.value;
-    if (id && id.includes('-')) {
-      return parseInt(id.split('-')[0]);
-    }
-    return null;
-  },
-  
   async handleBack() {
     try {
-      // 如果有未保存的进度，保存进度
       if (sessionProgress.needsSaving) {
         await wordLearning.loadWordData();
         sessionProgress.needsSaving = false;
       }
-      
-      // 导航回上一页
-      if (this.unitId) {
-        router.push(`/reading?unit=${this.unitId}`);
-      } else {
-        router.push('/reading');
-      }
+      window.history.back();
     } catch (error) {
       console.error('返回时出错:', error);
-      // 即使保存失败也继续导航
-      router.push(this.unitId ? `/reading?unit=${this.unitId}` : '/reading');
+      router.push('/home/reading');
     }
   },
   
   async generateEssay() {
     try {
-      const essayId = `essay-unit-${this.unitId}`;
-      
-      // 如果有未保存的进度，保存进度
       if (sessionProgress.needsSaving) {
         await wordLearning.loadWordData();
         sessionProgress.needsSaving = false;
       }
-      
-      // 导航到 Essay 页面
-      router.push(`/reading/essay/${essayId}`);
+      try {
+        await completeCourse(route.params.id);
+      } catch (error) {
+        console.error('完成课程失败:', error);
+      }
+      const response = await getCourseWords(route.params.id);
+      if (response.code==0 && response.data) {
+        router.push(`/reading/essay/${response.data.article_id}`);
+      }
     } catch (error) {
       console.error('生成文章时出错:', error);
-      // 即使保存失败也继续导航
-      router.push(`/reading/essay/essay-unit-${this.unitId}`);
+      router.push(`/reading/essay/essay-course-${route.params.id}`);
     }
   }
 };

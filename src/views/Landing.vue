@@ -27,13 +27,13 @@
           <!-- 未登录状态显示登录/注册按钮 -->
           <template v-if="!userStore.isAuthenticated">
             <button 
-              @click="showLoginModal" 
+              @click="modalStore.openLoginModal()" 
               class="py-[clamp(0.4rem,0.7vw,1rem)] px-[clamp(0.8rem,1.5vw,2rem)] rounded-md bg-black border border-gray-800 text-white transition-colors duration-200 cursor-pointer text-[clamp(0.9rem,1vw,1.3rem)] hover:bg-gray-800"
             >
               {{ $t('login.title') }}
             </button>
             <button 
-              @click="showSignupModal" 
+              @click="modalStore.openSignupModal()" 
               class="py-[clamp(0.4rem,0.7vw,1rem)] px-[clamp(0.8rem,1.5vw,2rem)] rounded-md bg-white text-black border-none transition-opacity duration-200 cursor-pointer text-[clamp(0.9rem,1vw,1.3rem)] hover:opacity-90"
             >
               {{ $t('signup.title') }}
@@ -80,19 +80,12 @@
         </p>
         <button 
           @click="$router.push('/reading')" 
-          class="bg-gradient-to-r from-white to-gray-200 text-black py-[clamp(0.7rem,1vh,1.2rem)] px-[clamp(2rem,3vw,4rem)] text-[clamp(1rem,1.2vw,1.8rem)] font-bold rounded-full border-none transition-all duration-300 cursor-pointer relative overflow-hidden shadow-blue-500/20 shadow-lg hover:opacity-90 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/30 active:translate-y-0 active:shadow-md active:shadow-blue-500/20"
+          class="mt-10 bg-gradient-to-r from-white to-gray-200 text-black py-[clamp(0.7rem,1vh,1.2rem)] px-[clamp(2rem,3vw,4rem)] text-[clamp(1rem,1.2vw,1.8rem)] font-bold rounded-full border-none transition-all duration-300 cursor-pointer relative overflow-hidden shadow-blue-500/20 shadow-lg hover:opacity-90 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/30 active:translate-y-0 active:shadow-md active:shadow-blue-500/20"
         >
           {{ $t('landing.startButton') }}
         </button>
       </main>
     </div>
-
-    <!-- 登录模态窗口 -->
-    <LoginModal 
-      :show="loginModalVisible" 
-      @close="closeModals" 
-      @showSignup="switchToSignup"
-    />
 
     <!-- 注册模态窗口 -->
     <SignupModal 
@@ -107,54 +100,40 @@
 import { onMounted, ref, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Logo from '../components/icons/Logo.vue';
-import LoginModal from '../components/LoginModal.vue';
 import SignupModal from '../components/SignupModal.vue';
 import LanguageSwitcher from '../components/utils/LanguageSwitcher.vue';
 import { useUserStore } from '@/stores/user';
+import { useModalStore } from '@/stores/modal';
 import message from '@/utils/message';
 
 // 使用 i18n
 const { t } = useI18n();
 
-// 使用用户store
+// 使用 store
 const userStore = useUserStore();
+const modalStore = useModalStore();
 
-// 模态窗口可见性状态
-const loginModalVisible = ref(false);
+// 注册模态窗口可见性状态
 const signupModalVisible = ref(false);
 
 // 用户菜单状态
 const userMenuVisible = ref(false);
 const userMenuContainer = ref(null);
 
-// 显示登录模态窗口
-const showLoginModal = () => {
-  loginModalVisible.value = true;
-  signupModalVisible.value = false;
-};
-
 // 显示注册模态窗口
 const showSignupModal = () => {
   signupModalVisible.value = true;
-  loginModalVisible.value = false;
 };
 
 // 关闭所有模态窗口
 const closeModals = () => {
-  loginModalVisible.value = false;
   signupModalVisible.value = false;
-};
-
-// 从登录切换到注册
-const switchToSignup = () => {
-  loginModalVisible.value = false;
-  signupModalVisible.value = true;
 };
 
 // 从注册切换到登录
 const switchToLogin = () => {
   signupModalVisible.value = false;
-  loginModalVisible.value = true;
+  modalStore.openLoginModal();
 };
 
 // 切换用户菜单显示状态
@@ -177,11 +156,6 @@ const handleLogout = async () => {
 };
 
 onMounted(() => {
-  // 初始化用户信息
-  if (userStore.token && !userStore.user) {
-    userStore.loadUser();
-  }
-  
   // 添加点击外部关闭菜单的事件监听
   document.addEventListener('click', handleClickOutside);
 });

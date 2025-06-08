@@ -1,0 +1,477 @@
+题型模块应该是放在前端src/questions那里的，一共有六种题型：填空题，单选题，双选题，判断题，匹配题，段落匹配题
+之前匹配题JSON格式对不上的bug应该是AI写的时候是直接在questions引用对应的界面，直接跳过了写在Essay中的内容，然后我去看了看之前的匹配题JSON格式发现不太适合让AI生成，所以改了改MacthingQuestion模块的具体逻辑
+
+这个版本只有示例，理论上要前端把Essay中的相关内容全改成接口，但我没代码
+
+新的匹配题模块：
+<template>
+  <div class="question-component">
+    <div class="question-instruction">
+      <p>Complete the text below by choosing the correct option from the box.</p>
+      <p>Drag each option into the correct gap in the passage.</p>
+    </div>
+    
+    <!-- Paragraph with gaps -->
+    <div class="passage-container">
+      <h3 class="passage-title">{{ passageTitle }}</h3>
+      <div class="passage-content">
+        <template v-for="(part, index) in parsedPassage" :key="index">
+          <span v-if="part.type === 'text'">{{ part.content }}</span>
+          <div 
+            v-else-if="part.type === 'gap'"
+            class="gap-container"
+            :class="{ 'filled': selectedAnswers[part.id] }"
+            @dragover.prevent
+            @drop="onDrop($event, part.id)"
+          >
+            <div v-if="selectedAnswers[part.id]" class="filled-answer">
+              {{ selectedAnswers[part.id] }}
+              <button class="remove-btn" @click="removeAnswer(part.id)">×</button>
+            </div>
+            <div v-else class="gap-placeholder">
+              {{ part.id }}
+            </div>
+          </div>
+        </template>
+      </div>
+    </div>
+    
+    <!-- Options box -->
+    <div class="options-box">
+      <div 
+        v-for="option in availableOptions" 
+        :key="option"
+        class="option-item"
+        draggable="true"
+        @dragstart="onDragStart($event, option)"
+      >
+        {{ option }}
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, defineProps, defineEmits, computed } from 'vue';
+
+const props = defineProps({
+  passageTitle: {
+    type: String,
+    default: "The Future of Artificial Intelligence"
+  },
+  // 新增：支持完整文本格式
+  passage: {
+    type: String,
+    default: ""
+  },
+  // 保持向后兼容：支持旧的passageParts格式
+  passageParts: {
+    type: Array,
+    default: () => []
+  },
+  options: {
+    type: Array,
+    required: true,
+    default: () => []
+  },
+  initialAnswers: {
+    type: Object,
+    default: () => ({})
+  }
+});
+
+const emit = defineEmits(['update:answers']);
+
+// Initialize selectedAnswers from props or convert to needed format
+const selectedAnswers = ref({...props.initialAnswers});
+
+// 解析文本，支持两种格式
+const parsedPassage = computed(() => {
+  // 如果使用新格式（passage）
+  if (props.passage) {
+    const parts = [];
+    const gapRegex = /\[GAP(\d+)\]/g;
+    let lastIndex = 0;
+    let match;
+    
+    while ((match = gapRegex.exec(props.passage)) !== null) {
+      // 添加空缺前的文本
+      if (match.index > lastIndex) {
+        parts.push({
+          type: 'text',
+          content: props.passage.slice(lastIndex, match.index)
+        });
+      }
+      
+      // 添加空缺
+      parts.push({
+        type: 'gap',
+        id: parseInt(match[1])
+      });
+      
+      lastIndex = match.index + match[0].length;
+    }
+    
+    // 添加最后剩余的文本
+    if (lastIndex < props.passage.length) {
+      parts.push({
+        type: 'text',
+        content: props.passage.slice(lastIndex)
+      });
+    }
+    
+    return parts;
+  }
+  
+  // 向后兼容：使用旧格式（passageParts）
+  if (props.passageParts && props.passageParts.length > 0) {
+    const parts = [];
+    props.passageParts.forEach((part, index) => {
+      parts.push({
+        type: 'text',
+        content: part
+      });
+      
+      // 在除最后一个元素外的每个元素后添加空缺
+      if (index < props.passageParts.length - 1) {
+        parts.push({
+          type: 'gap',
+          id: index + 1
+        });
+      }
+    });
+    return parts;
+  }
+  
+  return [];
+});
+
+// 计算未被选择的选项
+const availableOptions = computed(() => {
+  const selectedValues = Object.values(selectedAnswers.value);
+  return props.options.filter(option => !selectedValues.includes(option));
+});
+
+// 拖拽开始
+const onDragStart = (event, option) => {
+  event.dataTransfer.setData("text/plain", option);
+};
+
+// 放置选项
+const onDrop = (event, gapId) => {
+  const option = event.dataTransfer.getData("text/plain");
+  
+  // 检查选项是否已被使用
+  if (!availableOptions.value.includes(option)) return;
+  
+  // 检查这个空是否已有选项
+  if (selectedAnswers.value[gapId]) {
+    removeAnswer(gapId);
+  }
+  
+  // 设置新答案
+  selectedAnswers.value[gapId] = option;
+  emit('update:answers', selectedAnswers.value);
+};
+
+// 移除已放置的答案
+const removeAnswer = (gapId) => {
+  delete selectedAnswers.value[gapId];
+  emit('update:answers', selectedAnswers.value);
+};
+</script>
+
+<style scoped>
+.question-component {
+  padding: 0.5rem 0;
+}
+
+.question-instruction {
+  background-color: #f8f9fa;
+  border-radius: 0.5rem;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+  font-size: 0.95rem;
+}
+
+.passage-container {
+  margin-bottom: 2rem;
+}
+
+.passage-title {
+  text-align: center;
+  margin-bottom: 1.5rem;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.passage-content {
+  font-size: 1rem;
+  line-height: 1.8;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.gap-container {
+  display: inline-flex;
+  min-width: 120px;
+  height: 36px;
+  border: 1px dashed #888;
+  border-radius: 4px;
+  margin: 0 4px;
+  align-items: center;
+  justify-content: center;
+  background-color: #f9f9f9;
+  position: relative;
+}
+
+.gap-container.filled {
+  border: 1px solid #4A99E9;
+  background-color: rgba(74, 153, 233, 0.1);
+}
+
+.gap-placeholder {
+  color: #666;
+  font-weight: 500;
+}
+
+.filled-answer {
+  font-weight: 500;
+  color: #333;
+  padding: 0 10px;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.remove-btn {
+  position: absolute;
+  right: 3px;
+  top: 3px;
+  width: 16px;
+  height: 16px;
+  background-color: rgba(255, 255, 255, 0.8);
+  border: none;
+  border-radius: 50%;
+  font-size: 14px;
+  line-height: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #666;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.filled-answer:hover .remove-btn {
+  opacity: 1;
+}
+
+.options-box {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem;
+  background-color: #f0f8ff;
+  border-radius: 0.5rem;
+}
+
+.option-item {
+  padding: 0.5rem 1rem;
+  background-color: white;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  cursor: grab;
+  user-select: none;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.option-item:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.option-item:active {
+  cursor: grabbing;
+}
+</style> 
+匹配题JSON格式示例：
+{
+    "type": "matching",
+    "title": "Disaster Processes and Environmental Effects",
+    "text": "The Earth's systems are deeply interrelated and governed by various scientific principles. [GAP] changes, for example, explain how energy moves during volcanic activity. [GAP] waves are measured to understand the impact of a(n) [GAP]. In high-altitude areas, [GAP] can occur after a(n) [GAP], and [GAP] may follow due to the sudden release of water.",
+    "words": [
+        {
+            "id": 2,
+            "content": "Seismic"
+        },
+        {
+            "id": 3,
+            "content": "earthquake"
+        },
+        {
+            "id": 4,
+            "content": "avalanches"
+        },
+        {
+            "id": 5,
+            "content": "earthquake"
+        },
+        {
+            "id": 6,
+            "content": "torrent"
+        },
+        {
+            "id": 1,
+            "content": "Thermodynamic"
+        }
+    ],
+    //"correct_mapping": {"GAP位置":{"id":单词id,"content":"单词"}}
+    "correct_mapping": {
+        "0": {
+            "id": 1,
+            "content": "Thermodynamic"
+        },
+        "1": {
+            "id": 2,
+            "content": "Seismic"
+        },
+        "2": {
+            "id": 3,
+            "content": "earthquake"
+        },
+        "3": {
+            "id": 4,
+            "content": "avalanches"
+        },
+        "4": {
+            "id": 5,
+            "content": "earthquake"
+        },
+        "5": {
+            "id": 6,
+            "content": "torrent"
+        }
+    }
+},
+
+填空题JSON格式示例：
+{
+    "id": "fb1",
+    "type": "fill_in_blanks",
+    "text": "The shaking of the Earth’s surface due to tectonic movements is known as an [BLANK].",
+    "correctAnswer": "earthquake"
+},
+
+判断题JSON示例：
+{
+    "type": "true_false",
+    "id": "tf1",
+    "text": "Thermodynamic principles are used to predict seismic activity.",
+    "correctAnswer": 0 //not given:-1, false:0, true:1 
+},
+
+单选题JSON示例：
+{
+    "id": "sc1",
+    "type": "single_choice",
+    "text": "According to the article, which of the following is NOT a result of thermodynamic processes?",
+    "options": [
+        "Torrential rains",
+        "Formation of snow avalanches",
+        "Earthquake tremors",
+        "Condensation in the atmosphere"
+    ],
+    "correctAnswer": 2//正确答案options[2]
+},
+
+多选题JSON示例：
+{
+    "id": "dc1",
+    "type": "double_choice",
+    "text": "Which two of the following are natural disasters mentioned in the article?",
+    "options": [
+        "Hurricane",
+        "Earthquake",
+        "Tsunami",
+        "Avalanche",
+        "Cyclone"
+    ],
+    //正确答案options[1]、options[3]
+    "correctAnswers": [
+        1,
+        3
+    ]
+},
+
+段落匹配题JSON示例：
+{
+    "type": "paragraph_heading",
+    "headings": [
+        {
+            "id": 2,
+            "content": "Understanding Seismic Activity and Earthquakes"
+        },
+        {
+            "id": 3,
+            "content": "The Destructive Power of Avalanches"
+        },
+        {
+            "id": 4,
+            "content": "The Connection Between Earthquakes and Avalanches"
+        },
+        {
+            "id": 5,
+            "content": "The Formation and Impact of Torrents"
+        },
+        {
+            "id": 6,
+            "content": "Interconnected Natural Disasters and Their Chain Reactions"
+        },
+        {
+            "id": 7,
+            "content": "Modern Technologies for Disaster Monitoring and Response"
+        },
+        {
+            "id": 1,
+            "content": "The Role of Thermodynamic Principles in Natural Events"
+        }
+    ],
+    //"correct_mapping": {"段落":{"id":段落大意id,"content":"段落大意"}}
+    "correct_mapping": {
+        "0": {
+            "id": 1,
+            "content": "The Role of Thermodynamic Principles in Natural Events"
+        },
+        "1": {
+            "id": 2,
+            "content": "Understanding Seismic Activity and Earthquakes"
+        },
+        "2": {
+            "id": 3,
+            "content": "The Destructive Power of Avalanches"
+        },
+        "3": {
+            "id": 4,
+            "content": "The Connection Between Earthquakes and Avalanches"
+        },
+        "4": {
+            "id": 5,
+            "content": "The Formation and Impact of Torrents"
+        },
+        "5": {
+            "id": 6,
+            "content": "Interconnected Natural Disasters and Their Chain Reactions"
+        },
+        "6": {
+            "id": 7,
+            "content": "Modern Technologies for Disaster Monitoring and Response"
+        }
+    }
+}

@@ -10,6 +10,8 @@ import {
   isCancel 
 } from './cancelRequest';
 import message from '@/utils/message';
+import { useUserStore } from '@/stores/user';
+import { useModalStore } from '@/stores/modal';
 
 // 创建axios实例
 const http = axios.create({
@@ -51,22 +53,28 @@ http.interceptors.response.use(
     if (res.msg && !res.message) {
       res.message = res.msg;
     }
-    // 检查响应是否成功 - 根据success字段和code字段判断
-    // 成功情况：success为true 且 code以2开头（如200, 201等）
-    if (res.code !=0 || res.success === false || (res.code && !String(res.code).startsWith('2') && res.code != 0)) {
-      // 使用message组件显示错误信息
+
+    // 处理token过期或未授权的情况
+    if (res.code === 401 || res.code === 'TOKEN_EXPIRED') {
+      handleUnauthorized(res.message);
+      return Promise.reject(new Error(res.message || '登录已过期，请重新登录'));
+    }
+    // 处理401未授权错误
+    if (res.code == 401) {
+      handleUnauthorized(error.response.data?.message);
+      return Promise.reject(error);
+    }
+    // 检查响应是否成功
+    if (res.code != 0 || res.success === false || (res.code && !String(res.code).startsWith('2') && res.code != 0)) {
       message.error(res.message || '请求失败');
-      // 返回完整响应，让业务代码决定如何处理
       return res;
     }
-    // 如果有msg但没有message字段，使用msg字段
     
     // 成功情况下，可以显示成功消息（如果需要）
     if (res.message && response.config.showSuccessMessage) {
       message.success(res.message);
     }
     
-    // 返回完整响应
     return res;
   },
   (error) => {
@@ -85,54 +93,39 @@ http.interceptors.response.use(
         removePendingRequest(error.config);
       }
       
-      // 处理常见HTTP错误
-      let errorMsg = '';
-      switch (status) {
-        case 401:
-          errorMsg = '未授权，请重新登录';
-          // 这里可以调用清除token的方法并跳转到登录页
-          // removeToken();
-          // router.push('/login');
-          break;
-        case 403:
-          errorMsg = '拒绝访问';
-          break;
-        case 404:
-          errorMsg = '请求的资源不存在';
-          break;
-        case 500:
-          errorMsg = '服务器错误';
-          break;
-        default:
-          errorMsg = `请求错误: ${status}`;
+      // 处理401未授权错误
+      if (status === 401) {
+        handleUnauthorized(error.response.data?.message);
+        return Promise.reject(error);
       }
       
-      // 显示错误消息
-      if (error.response.data && error.response.data.message) {
-        message.error(error.response.data.message);
-      } else {
-        message.error(errorMsg);
-      }
-      
-      console.log("响应拦截错误", error.response);
-      
-      // 返回错误响应数据，让业务代码决定如何处理
-      return error.response.data;
+      // 处理其他错误
+      const errorMsg = error.response.data?.message || '请求失败';
+      message.error(errorMsg);
+      return Promise.reject(error);
     } else if (error.request) {
       // 请求已发出，但没有收到响应
-      const errorMsg = '网络错误，请检查您的网络连接';
-      message.error(errorMsg);
-      console.error(errorMsg);
+      message.error('网络错误，请检查您的网络连接');
     } else {
       // 请求配置有误
-      const errorMsg = `请求配置错误: ${error.message}`;
-      message.error(errorMsg);
-      console.error(errorMsg);
+      message.error(`请求配置错误: ${error.message}`);
     }
     
     return Promise.reject(error);
   }
 );
+
+// 处理未授权的统一方法
+const handleUnauthorized = (msg) => {
+  const userStore = useUserStore();
+  const modalStore = useModalStore();
+  // 清除用户信息
+  userStore.logout();
+  // 显示登录模态框
+  modalStore.openLoginModal();
+  // 显示错误消息
+  message.error(msg || '登录已过期，请重新登录');
+};
 
 /**
  * GET请求
@@ -166,7 +159,6 @@ export const post = (url, data = {}, config = {}) => {
 export const patch = (url, data = {}, config = {}) => {
   return http.patch(url, data, config);
 };
-
 
 /**
  * PUT请求

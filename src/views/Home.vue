@@ -60,7 +60,9 @@
           </div>
 
           <!-- 子路由内容区域 -->
-          <router-view />
+          <keep-alive>
+            <router-view />
+          </keep-alive>
           
       </div>
       

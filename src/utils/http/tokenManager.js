@@ -4,7 +4,7 @@
  */
 
 // token在localStorage中的键名
-const TOKEN_KEY = 'auth_token';
+const TOKEN_KEY = 'token';
 
 /**
  * 获取token
@@ -19,10 +19,6 @@ export const getToken = () => {
  * @param {string} token 
  */
 export const setToken = (token) => {
-  if (!token) {
-    removeToken();
-    return;
-  }
   localStorage.setItem(TOKEN_KEY, token);
 };
 

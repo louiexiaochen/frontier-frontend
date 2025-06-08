@@ -105,3 +105,13 @@ export const getUnitWords = (unitId) => {
 export const updateWordStatus = (data) => {
   return patch('/word/update', data);
 };
+
+/**
+ * 完成单元学习
+ * @param {number} unitId - 单元ID
+ * @returns {Promise}
+ */
+export const completeCourse = (courseId) => {
+  return patch('/course/complete', { course_id: courseId });
+}; 
+
