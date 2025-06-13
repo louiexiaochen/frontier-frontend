@@ -35,6 +35,7 @@
                 :type="showPassword ? 'text' : 'password'" 
                 v-model="password"
                 class="w-full pr-10"
+                :placeholder="$t('login.passwordPlaceholder')"
                 required
               />
               <button 

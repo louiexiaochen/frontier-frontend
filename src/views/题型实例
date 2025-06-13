@@ -1,477 +1,487 @@
-题型模块应该是放在前端src/questions那里的，一共有六种题型：填空题，单选题，双选题，判断题，匹配题，段落匹配题
-之前匹配题JSON格式对不上的bug应该是AI写的时候是直接在questions引用对应的界面，直接跳过了写在Essay中的内容，然后我去看了看之前的匹配题JSON格式发现不太适合让AI生成，所以改了改MacthingQuestion模块的具体逻辑
-
-这个版本只有示例，理论上要前端把Essay中的相关内容全改成接口，但我没代码
-
-新的匹配题模块：
-<template>
-  <div class="question-component">
-    <div class="question-instruction">
-      <p>Complete the text below by choosing the correct option from the box.</p>
-      <p>Drag each option into the correct gap in the passage.</p>
-    </div>
-    
-    <!-- Paragraph with gaps -->
-    <div class="passage-container">
-      <h3 class="passage-title">{{ passageTitle }}</h3>
-      <div class="passage-content">
-        <template v-for="(part, index) in parsedPassage" :key="index">
-          <span v-if="part.type === 'text'">{{ part.content }}</span>
-          <div 
-            v-else-if="part.type === 'gap'"
-            class="gap-container"
-            :class="{ 'filled': selectedAnswers[part.id] }"
-            @dragover.prevent
-            @drop="onDrop($event, part.id)"
-          >
-            <div v-if="selectedAnswers[part.id]" class="filled-answer">
-              {{ selectedAnswers[part.id] }}
-              <button class="remove-btn" @click="removeAnswer(part.id)">×</button>
-            </div>
-            <div v-else class="gap-placeholder">
-              {{ part.id }}
-            </div>
-          </div>
-        </template>
-      </div>
-    </div>
-    
-    <!-- Options box -->
-    <div class="options-box">
-      <div 
-        v-for="option in availableOptions" 
-        :key="option"
-        class="option-item"
-        draggable="true"
-        @dragstart="onDragStart($event, option)"
-      >
-        {{ option }}
-      </div>
-    </div>
-  </div>
-</template>
-
-<script setup>
-import { ref, defineProps, defineEmits, computed } from 'vue';
-
-const props = defineProps({
-  passageTitle: {
-    type: String,
-    default: "The Future of Artificial Intelligence"
-  },
-  // 新增：支持完整文本格式
-  passage: {
-    type: String,
-    default: ""
-  },
-  // 保持向后兼容：支持旧的passageParts格式
-  passageParts: {
-    type: Array,
-    default: () => []
-  },
-  options: {
-    type: Array,
-    required: true,
-    default: () => []
-  },
-  initialAnswers: {
-    type: Object,
-    default: () => ({})
-  }
-});
-
-const emit = defineEmits(['update:answers']);
-
-// Initialize selectedAnswers from props or convert to needed format
-const selectedAnswers = ref({...props.initialAnswers});
-
-// 解析文本，支持两种格式
-const parsedPassage = computed(() => {
-  // 如果使用新格式（passage）
-  if (props.passage) {
-    const parts = [];
-    const gapRegex = /\[GAP(\d+)\]/g;
-    let lastIndex = 0;
-    let match;
-    
-    while ((match = gapRegex.exec(props.passage)) !== null) {
-      // 添加空缺前的文本
-      if (match.index > lastIndex) {
-        parts.push({
-          type: 'text',
-          content: props.passage.slice(lastIndex, match.index)
-        });
-      }
-      
-      // 添加空缺
-      parts.push({
-        type: 'gap',
-        id: parseInt(match[1])
-      });
-      
-      lastIndex = match.index + match[0].length;
+我的请求都是一篇文章2种题型 请你帮我自动识别自动对接题型组件的显示结构
+请求 1 单词匹配和段落匹配题
+{
+    "code": 0,
+    "msg": "操作成功",
+    "data": {
+        "id": 80278948730130432,
+        "title": "Natural Disasters and Their Scientific Explanations",
+        "paragraphs": [
+            "Thermodynamic principles are crucial in understanding how energy is transferred and transformed during natural events. For instance, in volcanic eruptions, heat from the Earth's core is released through magma movement, which follows the laws of thermodynamics. This energy then affects the surrounding environment, often triggering other phenomena like landslides or changes in weather patterns. Scientists use thermodynamic models to predict the intensity and consequences of such events.",
+            "Seismic activity refers to the shaking of the Earth's surface caused by movements within the crust. The most well-known example is an earthquake, which occurs when tectonic plates shift and release stored energy. Earthquakes can have devastating effects, especially in densely populated areas. They can also lead to secondary disasters like tsunamis or building collapses. Seismologists monitor these events using specialized equipment to better understand their frequency and magnitude.",
+            "Avalanches are rapid flows of snow down a slope, often triggered by environmental changes or human activity. These events can be highly destructive, burying entire forests or settlements under tons of snow and ice. Although commonly associated with mountainous regions, avalanches can also occur in any terrain with enough snow accumulation. Early warning systems and terrain analysis are essential for preventing casualties in vulnerable areas.",
+            "Earthquakes not only affect the ground beneath us but can also destabilize snowpacks, leading to avalanches. This connection highlights the complex interplay between different types of natural disasters. In regions like the Himalayas or the Alps, seismic events can set off a chain reaction that causes both ground tremors and snow slides. Understanding this relationship helps scientists develop integrated disaster response strategies.",
+            "Torrents are fast-flowing streams of water that can form during heavy rainfall or rapid snowmelt. These powerful flows can erode the landscape and contribute to flooding. In mountainous areas, torrents often follow narrow valleys and can sweep away anything in their path. Hydrologists study these flows to design better water management systems and mitigate flood risks.",
+            "When combined, these natural forces—thermodynamic changes, seismic shifts, avalanches, earthquakes, and torrents—demonstrate the interconnectedness of Earth's systems. A single event can set off a cascade of environmental reactions. For instance, an earthquake might trigger an avalanche, which in turn could dam a river and later cause a torrential flood when the dam breaks. Recognizing these links is vital for predicting and responding to large-scale disasters.",
+            "Environmental monitoring and early warning technologies are becoming increasingly sophisticated. Modern tools allow scientists to track seismic waves, snow stability, water flow rates, and thermal changes in real time. These technologies save lives by providing critical information before disasters strike. Continued research and international cooperation are key to improving global preparedness for such complex and often interrelated events."
+        ],
+        "created_at": "2025-06-07T12:41:16.921Z",
+        "word_ids": [
+            76192926157254697,
+            76192926157254706,
+            76192926157254707,
+            76192926157254705,
+            76192926157254704
+        ],
+        "questions": [
+            {
+                "type": "matching",
+                "title": "Disaster Processes and Environmental Effects",
+                "text": "The Earth's systems are deeply interrelated and governed by various scientific principles. [GAP] changes, for example, explain how energy moves during volcanic activity. [GAP] waves are measured to understand the impact of a(n) [GAP]. In high-altitude areas, [GAP] can occur after a(n) [GAP], and [GAP] may follow due to the sudden release of water.",
+                "words": [
+                    {
+                        "id": 1,
+                        "content": "Thermodynamic"
+                    },
+                    {
+                        "id": 2,
+                        "content": "Seismic"
+                    },
+                    {
+                        "id": 3,
+                        "content": "earthquake"
+                    },
+                    {
+                        "id": 4,
+                        "content": "avalanches"
+                    },
+                    {
+                        "id": 5,
+                        "content": "earthquake"
+                    },
+                    {
+                        "id": 6,
+                        "content": "torrent"
+                    }
+                ],
+                "correct_mapping": {
+                    "0": {
+                        "id": 1,
+                        "content": "Thermodynamic"
+                    },
+                    "1": {
+                        "id": 2,
+                        "content": "Seismic"
+                    },
+                    "2": {
+                        "id": 3,
+                        "content": "earthquake"
+                    },
+                    "3": {
+                        "id": 4,
+                        "content": "avalanches"
+                    },
+                    "4": {
+                        "id": 5,
+                        "content": "earthquake"
+                    },
+                    "5": {
+                        "id": 6,
+                        "content": "torrent"
+                    }
+                }
+            },
+            {
+                "type": "paragraph_heading",
+                "headings": [
+                    {
+                        "id": 6,
+                        "content": "Interconnected Natural Disasters and Their Chain Reactions"
+                    },
+                    {
+                        "id": 7,
+                        "content": "Modern Technologies for Disaster Monitoring and Response"
+                    },
+                    {
+                        "id": 1,
+                        "content": "The Role of Thermodynamic Principles in Natural Events"
+                    },
+                    {
+                        "id": 2,
+                        "content": "Understanding Seismic Activity and Earthquakes"
+                    },
+                    {
+                        "id": 3,
+                        "content": "The Destructive Power of Avalanches"
+                    },
+                    {
+                        "id": 4,
+                        "content": "The Connection Between Earthquakes and Avalanches"
+                    },
+                    {
+                        "id": 5,
+                        "content": "The Formation and Impact of Torrents"
+                    }
+                ],
+                "correct_mapping": {
+                    "0": {
+                        "id": 1,
+                        "content": "The Role of Thermodynamic Principles in Natural Events"
+                    },
+                    "1": {
+                        "id": 2,
+                        "content": "Understanding Seismic Activity and Earthquakes"
+                    },
+                    "2": {
+                        "id": 3,
+                        "content": "The Destructive Power of Avalanches"
+                    },
+                    "3": {
+                        "id": 4,
+                        "content": "The Connection Between Earthquakes and Avalanches"
+                    },
+                    "4": {
+                        "id": 5,
+                        "content": "The Formation and Impact of Torrents"
+                    },
+                    "5": {
+                        "id": 6,
+                        "content": "Interconnected Natural Disasters and Their Chain Reactions"
+                    },
+                    "6": {
+                        "id": 7,
+                        "content": "Modern Technologies for Disaster Monitoring and Response"
+                    }
+                }
+            }
+        ]
     }
-    
-    // 添加最后剩余的文本
-    if (lastIndex < props.passage.length) {
-      parts.push({
-        type: 'text',
-        content: props.passage.slice(lastIndex)
-      });
+}
+
+请求2 多选题和单词填空
+{
+    "code": 0,
+    "msg": "操作成功",
+    "data": {
+        "id": 80283871999971328,
+        "title": "The Forces of Nature: Understanding Natural Disasters through Science",
+        "paragraphs": [
+            "Natural disasters have long fascinated and terrified human beings, revealing the immense power of forces both above and beneath the Earth's surface. From thunderstorms to volcanic eruptions, our planet is constantly undergoing dynamic changes. Among the most impactful events are those governed by the principles of **thermodynamic** systems, where energy is transferred and transformed under extreme conditions. This article explores several key disasters — their causes, effects, and the scientific understanding behind them.",
+            "One of the most studied natural phenomena is the **earthquake**, a sudden and often violent movement of the Earth caused by shifts in tectonic plates. These movements release accumulated stress, often triggering waves of energy that spread across the surface. Scientists analyze earthquakes using **seismic** waves to determine their magnitude and origin, which helps in predicting future events and minimizing damage in vulnerable regions.",
+            "Related to seismic activity is the volcanic eruption, which can also instigate another type of disaster: an **avalanche**. When a volcano erupts, the heat can rapidly melt snow and ice, triggering fast-moving flows of rock, snow, and debris down mountain slopes. While avalanches typically occur due to unstable snowpacks, they can also be initiated by external forces such as earthquakes or human activity.",
+            "Another dramatic natural event is the **torrent**, a fast-flowing stream of water often caused by heavy rainfall or rapid snowmelt. Torrents can develop into flash floods, especially in mountainous regions, wiping out entire ecosystems and infrastructure within minutes. Like avalanches, torrents are a reminder of how quickly water can become a destructive force when natural balances are upset.",
+            "The science behind these phenomena is rooted in physics, particularly in the laws of **thermodynamic** systems. These laws explain how energy moves and transforms, which is crucial in understanding the buildup and release of pressure in the Earth’s crust before an earthquake or the sudden movement of snow during an avalanche.",
+            "While many natural disasters are unpredictable, scientists use advanced monitoring tools to assess **seismic** activity and atmospheric disturbances. Seismographs help detect early tremors that might precede a quake, and satellite imagery can show the early signs of a potential avalanche or torrential flood.",
+            "In conclusion, understanding the **thermodynamic**, **seismic**, and hydrological forces behind these events is essential for disaster preparedness and mitigation. Whether it's the ground shaking beneath our feet during an **earthquake**, the snow cascading down a mountainside in an **avalanche**, or the rivers swelling into uncontrollable **torrents**, nature reminds us of its raw and untamed power."
+        ],
+        "created_at": "2025-06-07T13:01:30.911Z",
+        "word_ids": [
+            76192926157254697,
+            76192926157254706,
+            76192926157254707,
+            76192926157254705,
+            76192926157254704
+        ],
+        "questions": [
+            {
+                "id": "dc1",
+                "type": "double_choice",
+                "text": "Which two of the following are natural disasters mentioned in the article?",
+                "options": [
+                    "Hurricane",
+                    "Earthquake",
+                    "Tsunami",
+                    "Avalanche",
+                    "Cyclone"
+                ],
+                "correctAnswers": [
+                    1,
+                    3
+                ]
+            },
+            {
+                "id": "dc2",
+                "type": "double_choice",
+                "text": "Which two scientific principles or phenomena are discussed in relation to natural disasters?",
+                "options": [
+                    "Magnetism",
+                    "Thermodynamic systems",
+                    "Photosynthesis",
+                    "Seismic waves",
+                    "Gravity"
+                ],
+                "correctAnswers": [
+                    1,
+                    3
+                ]
+            },
+            {
+                "id": "dc3",
+                "type": "double_choice",
+                "text": "Which two events may be triggered by volcanic eruptions according to the article?",
+                "options": [
+                    "Tsunami",
+                    "Avalanche",
+                    "Forest fire",
+                    "Torrent",
+                    "Tornado"
+                ],
+                "correctAnswers": [
+                    1,
+                    3
+                ]
+            },
+            {
+                "id": "dc4",
+                "type": "double_choice",
+                "text": "Which two tools are used by scientists to monitor natural disasters?",
+                "options": [
+                    "Barometer",
+                    "Radar",
+                    "Seismograph",
+                    "Satellite imagery",
+                    "Thermometer"
+                ],
+                "correctAnswers": [
+                    2,
+                    3
+                ]
+            },
+            {
+                "id": "dc5",
+                "type": "double_choice",
+                "text": "Which two forces are described as examples of powerful natural energy transformations?",
+                "options": [
+                    "Wind",
+                    "Thermodynamic",
+                    "Light",
+                    "Seismic",
+                    "Sound"
+                ],
+                "correctAnswers": [
+                    1,
+                    3
+                ]
+            },
+            {
+                "id": "dc6",
+                "type": "double_choice",
+                "text": "Which two types of natural disasters can occur rapidly and with little warning?",
+                "options": [
+                    "Drought",
+                    "Torrent",
+                    "Earthquake",
+                    "Flood",
+                    "Avalanche"
+                ],
+                "correctAnswers": [
+                    1,
+                    4
+                ]
+            },
+            {
+                "id": "dc7",
+                "type": "double_choice",
+                "text": "Which two environmental changes can lead to the formation of a torrent?",
+                "options": [
+                    "Deforestation",
+                    "Heavy rainfall",
+                    "Urbanization",
+                    "Rapid snowmelt",
+                    "Soil erosion"
+                ],
+                "correctAnswers": [
+                    1,
+                    3
+                ]
+            },
+            {
+                "id": "fb1",
+                "type": "fill_in_blanks",
+                "text": "The shaking of the Earth’s surface due to tectonic movements is known as an [BLANK].",
+                "correctAnswer": "earthquake"
+            },
+            {
+                "id": "fb2",
+                "type": "fill_in_blanks",
+                "text": "The science of energy transfer and transformation is referred to as [BLANK].",
+                "correctAnswer": "thermodynamic"
+            },
+            {
+                "id": "fb3",
+                "type": "fill_in_blanks",
+                "text": "A sudden rapid flow of snow and debris down a mountain is called an [BLANK].",
+                "correctAnswer": "avalanche"
+            },
+            {
+                "id": "fb4",
+                "type": "fill_in_blanks",
+                "text": "Scientists use [BLANK] to detect and measure the energy waves generated by earthquakes.",
+                "correctAnswer": "seismic"
+            },
+            {
+                "id": "fb5",
+                "type": "fill_in_blanks",
+                "text": "A fast-moving stream of water, often resulting from heavy rains, is known as a [BLANK].",
+                "correctAnswer": "torrent"
+            },
+            {
+                "id": "fb6",
+                "type": "fill_in_blanks",
+                "text": "Natural disasters are driven by forces both above and below the Earth’s [BLANK].",
+                "correctAnswer": "crust"
+            },
+            {
+                "id": "fb7",
+                "type": "fill_in_blanks",
+                "text": "In mountainous regions, rapid snowmelt caused by volcanic eruptions can trigger [BLANK] flows.",
+                "correctAnswer": "avalanche"
+            }
+        ]
     }
-    
-    return parts;
-  }
-  
-  // 向后兼容：使用旧格式（passageParts）
-  if (props.passageParts && props.passageParts.length > 0) {
-    const parts = [];
-    props.passageParts.forEach((part, index) => {
-      parts.push({
-        type: 'text',
-        content: part
-      });
-      
-      // 在除最后一个元素外的每个元素后添加空缺
-      if (index < props.passageParts.length - 1) {
-        parts.push({
-          type: 'gap',
-          id: index + 1
-        });
-      }
-    });
-    return parts;
-  }
-  
-  return [];
-});
-
-// 计算未被选择的选项
-const availableOptions = computed(() => {
-  const selectedValues = Object.values(selectedAnswers.value);
-  return props.options.filter(option => !selectedValues.includes(option));
-});
-
-// 拖拽开始
-const onDragStart = (event, option) => {
-  event.dataTransfer.setData("text/plain", option);
-};
-
-// 放置选项
-const onDrop = (event, gapId) => {
-  const option = event.dataTransfer.getData("text/plain");
-  
-  // 检查选项是否已被使用
-  if (!availableOptions.value.includes(option)) return;
-  
-  // 检查这个空是否已有选项
-  if (selectedAnswers.value[gapId]) {
-    removeAnswer(gapId);
-  }
-  
-  // 设置新答案
-  selectedAnswers.value[gapId] = option;
-  emit('update:answers', selectedAnswers.value);
-};
-
-// 移除已放置的答案
-const removeAnswer = (gapId) => {
-  delete selectedAnswers.value[gapId];
-  emit('update:answers', selectedAnswers.value);
-};
-</script>
-
-<style scoped>
-.question-component {
-  padding: 0.5rem 0;
 }
 
-.question-instruction {
-  background-color: #f8f9fa;
-  border-radius: 0.5rem;
-  padding: 1rem;
-  margin-bottom: 1.5rem;
-  font-size: 0.95rem;
-}
-
-.passage-container {
-  margin-bottom: 2rem;
-}
-
-.passage-title {
-  text-align: center;
-  margin-bottom: 1.5rem;
-  font-size: 1.25rem;
-  font-weight: 600;
-}
-
-.passage-content {
-  font-size: 1rem;
-  line-height: 1.8;
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-}
-
-.gap-container {
-  display: inline-flex;
-  min-width: 120px;
-  height: 36px;
-  border: 1px dashed #888;
-  border-radius: 4px;
-  margin: 0 4px;
-  align-items: center;
-  justify-content: center;
-  background-color: #f9f9f9;
-  position: relative;
-}
-
-.gap-container.filled {
-  border: 1px solid #4A99E9;
-  background-color: rgba(74, 153, 233, 0.1);
-}
-
-.gap-placeholder {
-  color: #666;
-  font-weight: 500;
-}
-
-.filled-answer {
-  font-weight: 500;
-  color: #333;
-  padding: 0 10px;
-  width: 100%;
-  height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  position: relative;
-}
-
-.remove-btn {
-  position: absolute;
-  right: 3px;
-  top: 3px;
-  width: 16px;
-  height: 16px;
-  background-color: rgba(255, 255, 255, 0.8);
-  border: none;
-  border-radius: 50%;
-  font-size: 14px;
-  line-height: 1;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  color: #666;
-  opacity: 0;
-  transition: opacity 0.2s;
-}
-
-.filled-answer:hover .remove-btn {
-  opacity: 1;
-}
-
-.options-box {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem;
-  padding: 1rem;
-  background-color: #f0f8ff;
-  border-radius: 0.5rem;
-}
-
-.option-item {
-  padding: 0.5rem 1rem;
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  cursor: grab;
-  user-select: none;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
-  transition: transform 0.2s, box-shadow 0.2s;
-}
-
-.option-item:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
-}
-
-.option-item:active {
-  cursor: grabbing;
-}
-</style> 
-匹配题JSON格式示例：
+请求3 对错题和单选题
 {
-    "type": "matching",
-    "title": "Disaster Processes and Environmental Effects",
-    "text": "The Earth's systems are deeply interrelated and governed by various scientific principles. [GAP] changes, for example, explain how energy moves during volcanic activity. [GAP] waves are measured to understand the impact of a(n) [GAP]. In high-altitude areas, [GAP] can occur after a(n) [GAP], and [GAP] may follow due to the sudden release of water.",
-    "words": [
-        {
-            "id": 2,
-            "content": "Seismic"
-        },
-        {
-            "id": 3,
-            "content": "earthquake"
-        },
-        {
-            "id": 4,
-            "content": "avalanches"
-        },
-        {
-            "id": 5,
-            "content": "earthquake"
-        },
-        {
-            "id": 6,
-            "content": "torrent"
-        },
-        {
-            "id": 1,
-            "content": "Thermodynamic"
-        }
-    ],
-    //"correct_mapping": {"GAP位置":{"id":单词id,"content":"单词"}}
-    "correct_mapping": {
-        "0": {
-            "id": 1,
-            "content": "Thermodynamic"
-        },
-        "1": {
-            "id": 2,
-            "content": "Seismic"
-        },
-        "2": {
-            "id": 3,
-            "content": "earthquake"
-        },
-        "3": {
-            "id": 4,
-            "content": "avalanches"
-        },
-        "4": {
-            "id": 5,
-            "content": "earthquake"
-        },
-        "5": {
-            "id": 6,
-            "content": "torrent"
-        }
-    }
-},
-
-填空题JSON格式示例：
-{
-    "id": "fb1",
-    "type": "fill_in_blanks",
-    "text": "The shaking of the Earth’s surface due to tectonic movements is known as an [BLANK].",
-    "correctAnswer": "earthquake"
-},
-
-判断题JSON示例：
-{
-    "type": "true_false",
-    "id": "tf1",
-    "text": "Thermodynamic principles are used to predict seismic activity.",
-    "correctAnswer": 0 //not given:-1, false:0, true:1 
-},
-
-单选题JSON示例：
-{
-    "id": "sc1",
-    "type": "single_choice",
-    "text": "According to the article, which of the following is NOT a result of thermodynamic processes?",
-    "options": [
-        "Torrential rains",
-        "Formation of snow avalanches",
-        "Earthquake tremors",
-        "Condensation in the atmosphere"
-    ],
-    "correctAnswer": 2//正确答案options[2]
-},
-
-多选题JSON示例：
-{
-    "id": "dc1",
-    "type": "double_choice",
-    "text": "Which two of the following are natural disasters mentioned in the article?",
-    "options": [
-        "Hurricane",
-        "Earthquake",
-        "Tsunami",
-        "Avalanche",
-        "Cyclone"
-    ],
-    //正确答案options[1]、options[3]
-    "correctAnswers": [
-        1,
-        3
-    ]
-},
-
-段落匹配题JSON示例：
-{
-    "type": "paragraph_heading",
-    "headings": [
-        {
-            "id": 2,
-            "content": "Understanding Seismic Activity and Earthquakes"
-        },
-        {
-            "id": 3,
-            "content": "The Destructive Power of Avalanches"
-        },
-        {
-            "id": 4,
-            "content": "The Connection Between Earthquakes and Avalanches"
-        },
-        {
-            "id": 5,
-            "content": "The Formation and Impact of Torrents"
-        },
-        {
-            "id": 6,
-            "content": "Interconnected Natural Disasters and Their Chain Reactions"
-        },
-        {
-            "id": 7,
-            "content": "Modern Technologies for Disaster Monitoring and Response"
-        },
-        {
-            "id": 1,
-            "content": "The Role of Thermodynamic Principles in Natural Events"
-        }
-    ],
-    //"correct_mapping": {"段落":{"id":段落大意id,"content":"段落大意"}}
-    "correct_mapping": {
-        "0": {
-            "id": 1,
-            "content": "The Role of Thermodynamic Principles in Natural Events"
-        },
-        "1": {
-            "id": 2,
-            "content": "Understanding Seismic Activity and Earthquakes"
-        },
-        "2": {
-            "id": 3,
-            "content": "The Destructive Power of Avalanches"
-        },
-        "3": {
-            "id": 4,
-            "content": "The Connection Between Earthquakes and Avalanches"
-        },
-        "4": {
-            "id": 5,
-            "content": "The Formation and Impact of Torrents"
-        },
-        "5": {
-            "id": 6,
-            "content": "Interconnected Natural Disasters and Their Chain Reactions"
-        },
-        "6": {
-            "id": 7,
-            "content": "Modern Technologies for Disaster Monitoring and Response"
-        }
+    "code": 0,
+    "msg": "操作成功",
+    "data": {
+        "id": 80286697861959680,
+        "title": "Earth's Fury: Understanding Natural Disasters through Thermodynamics and Seismic Activity",
+        "paragraphs": [
+            "Natural disasters have long captivated human curiosity and concern. From the roaring torrents of rivers after heavy rains to the powerful seismic shifts beneath the Earth's surface, these events remind us of nature's immense power. Understanding the science behind these occurrences, particularly through the lens of thermodynamics and seismic activity, can provide valuable insights into how and why they happen.",
+            "Thermodynamic principles play a crucial role in the formation and intensification of natural disasters. For example, torrential rains often result from the rapid transfer of heat energy in the atmosphere. When warm, moist air rises and cools, it undergoes a thermodynamic process that leads to condensation and the formation of heavy rain clouds. This can result in flash floods and massive torrents of water rushing down valleys and mountain slopes.",
+            "Seismic activity, on the other hand, refers to movements in the Earth's crust that can lead to earthquakes. These movements are driven by the release of energy stored in rock layers due to tectonic pressures. Earthquakes can occur without warning, causing devastation across cities and triggering secondary disasters such as tsunamis and landslides. Scientists use seismographs to detect and measure these tremors, allowing for better prediction and preparation.",
+            "One of the most dangerous secondary effects of earthquakes is the potential to trigger avalanches in mountainous regions. An avalanche is a sudden, rapid flow of snow, ice, and rock down a mountainside. It can be initiated by a variety of factors, including seismic vibrations that destabilize snowpacks. In such cases, the energy released during an earthquake can serve as the catalyst for a deadly avalanche, especially in regions with heavy snowfall and steep terrain.",
+            "Although avalanches are most commonly associated with snow, they can also occur with other materials such as loose soil or debris, especially after torrential rains. These types of avalanches, often referred to as mudslides or debris flows, involve the thermodynamic interaction between water and earth materials. The saturation of soil lowers its frictional resistance, and with enough gravitational pull, entire hillsides can collapse in a matter of seconds.",
+            "Preparation and scientific understanding are the keys to mitigating the risks associated with these powerful forces of nature. While thermodynamic models help meteorologists predict extreme weather patterns that may lead to torrential flooding, seismic monitoring systems provide early warnings for earthquakes. These tools, combined with avalanche control measures such as controlled explosions and protective barriers, help reduce the number of lives lost and the damage caused by natural disasters.",
+            "In conclusion, the interplay between thermodynamic and seismic forces shapes many of the Earth's most destructive phenomena. Earthquakes, avalanches, and torrential floods are not isolated events but rather complex processes influenced by physical laws. By continuing to study these forces, scientists can improve forecasting models and disaster response strategies, ultimately saving lives and protecting communities from nature's unpredictable fury."
+        ],
+        "created_at": "2025-06-07T13:12:16.938Z",
+        "word_ids": [
+            76192926157254697,
+            76192926157254706,
+            76192926157254707,
+            76192926157254705,
+            76192926157254704
+        ],
+        "questions": [
+            {
+                "type": "true_false",
+                "id": "tf1",
+                "text": "Thermodynamic principles are used to predict seismic activity.",
+                "correctAnswer": 0
+            },
+            {
+                "type": "true_false",
+                "id": "tf2",
+                "text": "Torrential rains may result from a thermodynamic process in the atmosphere.",
+                "correctAnswer": 1
+            },
+            {
+                "type": "true_false",
+                "id": "tf3",
+                "text": "Earthquakes are always followed by avalanches.",
+                "correctAnswer": 0
+            },
+            {
+                "type": "true_false",
+                "id": "tf4",
+                "text": "Seismic vibrations can initiate avalanches in mountainous areas.",
+                "correctAnswer": 1
+            },
+            {
+                "type": "true_false",
+                "id": "tf5",
+                "text": "Thermodynamics plays a role in debris flows caused by heavy rain.",
+                "correctAnswer": 1
+            },
+            {
+                "type": "true_false",
+                "id": "tf6",
+                "text": "The article states that avalanches only occur in snowy conditions.",
+                "correctAnswer": -1
+            },
+            {
+                "type": "true_false",
+                "id": "tf7",
+                "text": "Avalanche control measures include building large dams.",
+                "correctAnswer": 0
+            },
+            {
+                "id": "sc1",
+                "type": "single_choice",
+                "text": "According to the article, which of the following is NOT a result of thermodynamic processes?",
+                "options": [
+                    "Torrential rains",
+                    "Formation of snow avalanches",
+                    "Earthquake tremors",
+                    "Condensation in the atmosphere"
+                ],
+                "correctAnswer": 2
+            },
+            {
+                "id": "sc2",
+                "type": "single_choice",
+                "text": "Which natural event is most directly caused by seismic activity?",
+                "options": [
+                    "Avalanche",
+                    "Earthquake",
+                    "Torrential flood",
+                    "Mudslide"
+                ],
+                "correctAnswer": 1
+            },
+            {
+                "id": "sc3",
+                "type": "single_choice",
+                "text": "What can trigger a debris flow according to the article?",
+                "options": [
+                    "Thermodynamic cooling",
+                    "Excessive snow accumulation",
+                    "Saturation of soil due to rain",
+                    "Decreased air pressure"
+                ],
+                "correctAnswer": 2
+            },
+            {
+                "id": "sc4",
+                "type": "single_choice",
+                "text": "Which term refers to a sudden flow of snow down a mountainside?",
+                "options": [
+                    "Earthquake",
+                    "Torrent",
+                    "Avalanche",
+                    "Thermodynamic shift"
+                ],
+                "correctAnswer": 2
+            },
+            {
+                "id": "sc5",
+                "type": "single_choice",
+                "text": "According to the article, how do scientists monitor earthquakes?",
+                "options": [
+                    "Through thermodynamic models",
+                    "Using controlled explosions",
+                    "With seismographs",
+                    "By analyzing snowpack"
+                ],
+                "correctAnswer": 2
+            },
+            {
+                "id": "sc6",
+                "type": "single_choice",
+                "text": "What is the main purpose of the article?",
+                "options": [
+                    "To explain how to build protective barriers",
+                    "To describe the dangers of avalanches",
+                    "To highlight the connection between natural disasters and physical principles",
+                    "To compare snow avalanches and mudslides"
+                ],
+                "correctAnswer": 2
+            },
+            {
+                "id": "sc7",
+                "type": "single_choice",
+                "text": "Which of the following is a secondary effect of earthquakes mentioned in the article?",
+                "options": [
+                    "Tectonic pressure",
+                    "Avalanche",
+                    "Heat transfer",
+                    "Condensation"
+                ],
+                "correctAnswer": 1
+            }
+        ]
     }
 }

@@ -24,6 +24,7 @@ export default {
     // 新增配置项
     emailPlaceholder: 'Enter your email address',
     usernamePlaceholder: 'Enter your username',  // 新增用户名占位符
+    passwordPlaceholder: 'Enter your password',
     loggingIn: 'Logging in...',
     hidePasswordTooltip: 'Hide password',
     showPasswordTooltip: 'Show password',

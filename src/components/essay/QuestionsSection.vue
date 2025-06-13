@@ -1,132 +1,124 @@
 <template>
   <div class="questions-section" :style="{ width: width + '%' }">
-    <!-- Dynamic Question Modules -->
-    <div class="questions-modules">
-      <component 
-        v-for="(module, index) in questionModules"
-        :key="index"
-        :is="questionComponentMap[module.type]"
-        v-bind="module.data"
-        :initialAnswers="initialAnswers[module.type] || {}"
-        @update:answers="answers => updateAnswers(module.type, answers)"
-      ></component>
-    </div>
-    
-    <!-- Submit Button -->
-    <div class="submit-button-container">
-      <button class="submit-button" @click="$emit('submit')">提交答案</button>
+    <div class="questions-container">
+      <h2 class="section-title">问题</h2>
+      
+      <div class="questions-modules">
+        <component 
+          v-for="(module, index) in questionModules" 
+          :key="index"
+          :is="getQuestionComponent(module.type)"
+          v-bind="module.data"
+          :isFinished="isFinished"
+          @update:answers="(answers) => handleAnswerUpdate(module.type, answers)"
+        ></component>
+      </div>
+      
+      <div class="submit-button-container" v-if="!isFinished">
+        <button class="submit-button" @click="$emit('submit')">提交答案</button>
+      </div>
     </div>
   </div>
 </template>
 
 <script setup>
 import { defineProps, defineEmits } from 'vue';
-import TrueFalseQuestion from '../questions/TrueFalseQuestion.vue';
+
+// 导入问题组件
+import SingleChoiceQuestion from '../questions/SingleChoiceQuestion.vue';
 import MultipleChoiceQuestion from '../questions/MultipleChoiceQuestion.vue';
+import TrueFalseQuestion from '../questions/TrueFalseQuestion.vue';
 import FillInBlanksQuestion from '../questions/FillInBlanksQuestion.vue';
 import MatchingQuestion from '../questions/MatchingQuestion.vue';
 import ParagraphHeadingQuestion from '../questions/ParagraphHeadingQuestion.vue';
-import SingleChoiceQuestion from '../questions/SingleChoiceQuestion.vue';
 
 const props = defineProps({
   width: {
     type: Number,
-    required: true
+    default: 50
   },
   questionModules: {
     type: Array,
-    required: true
+    default: () => []
   },
-  initialAnswers: {
-    type: Object,
-    required: true
+  isFinished: {
+    type: Boolean,
+    default: false
   }
 });
 
 const emit = defineEmits(['update:answers', 'submit']);
 
-// Map of component types to their corresponding component
-const questionComponentMap = {
-  'true-false': TrueFalseQuestion,
-  'multiple-choice': MultipleChoiceQuestion,
-  'fill-in-blanks': FillInBlanksQuestion,
-  'matching': MatchingQuestion,
-  'paragraph-heading': ParagraphHeadingQuestion,
-  'single-choice': SingleChoiceQuestion,
+// 根据题型获取对应组件
+const getQuestionComponent = (type) => {
+  const componentMap = {
+    'single_choice': SingleChoiceQuestion,
+    'multiple_choice': MultipleChoiceQuestion,
+    'double_choice': MultipleChoiceQuestion,
+    'true_false': TrueFalseQuestion,
+    'fill_in_blanks': FillInBlanksQuestion,
+    'matching': MatchingQuestion,
+    'paragraph_heading': ParagraphHeadingQuestion
+  };
+  
+  return componentMap[type];
 };
 
-// Handle answers update from any question component
-const updateAnswers = (questionType, answers) => {
-  emit('update:answers', { type: questionType, answers });
+// 处理答案更新
+const handleAnswerUpdate = (type, answers) => {
+  // 简化为仅向父组件传递答案更新事件
+  emit('update:answers', { type, answers });
 };
 </script>
 
 <style scoped>
 .questions-section {
-  background-color: #f8f9fa;
-  color: #333;
-  border-radius: 0 0.5rem 0.5rem 0;
-  padding: 2rem;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-  max-height: 100%;
-  transition: width 0.2s ease;
+  @apply bg-[#f8f9fa] text-[#333] rounded-r-lg flex flex-col h-full overflow-hidden;
+}
+
+.questions-container {
+  @apply p-8 flex flex-col h-full overflow-y-auto;
   scrollbar-width: thin;
   scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
 }
 
-.questions-section::-webkit-scrollbar {
+.questions-container::-webkit-scrollbar {
   width: 6px;
 }
 
-.questions-section::-webkit-scrollbar-track {
+.questions-container::-webkit-scrollbar-track {
   background: transparent;
 }
 
-.questions-section::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
-  border-radius: 3px;
+.questions-container::-webkit-scrollbar-thumb {
+  @apply bg-black/20 rounded;
 }
 
 .questions-modules {
-  display: flex;
-  flex-direction: column;
-  gap: 2.5rem;
-  margin-bottom: 2rem;
+  @apply flex flex-col gap-10 mb-8 flex-1;
+}
+
+.section-title {
+  @apply text-2xl font-bold mb-6 text-white;
 }
 
 /* Submit Button */
 .submit-button-container {
-  display: flex;
-  justify-content: center;
-  margin-top: 1.5rem;
+  @apply flex justify-center mt-6;
 }
 
 .submit-button {
-  background: linear-gradient(90deg, #4A99E9, #5C2797);
-  color: white;
-  border: none;
-  border-radius: 0.5rem;
-  padding: 0.75rem 2rem;
-  font-size: 1.1rem;
-  font-weight: 600;
-  cursor: pointer;
-  transition: all 0.3s;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  min-width: 180px;
+  @apply bg-gradient-to-r from-[#4A99E9] to-[#5C2797] text-white border-none rounded-lg py-3 px-8 text-lg font-semibold cursor-pointer transition-all duration-300 shadow-md min-w-[180px];
 }
 
 .submit-button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  @apply transform -translate-y-0.5 shadow-lg;
 }
 
 /* 响应式设计 */
 @media (max-width: 768px) {
   .questions-section {
-    width: 100% !important;
-    border-radius: 0 0 0.5rem 0.5rem;
+    @apply w-full rounded-b-lg rounded-t-none;
   }
 }
 </style>

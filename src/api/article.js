@@ -51,8 +51,16 @@ export const updateArticleStatus = (articleId, isFinished) => {
  * @returns {Promise} 评分结果
  */
 export const submitArticleAnswers = (articleId, answers) => {
-  return post('/article/submit', {
+  return post('/article/status', {
     article_id: articleId,
-    answers: answers
   });
+};
+
+/**
+ * 重新生成文章
+ * @param {Object} data - 包含article_id和course_id的对象
+ * @returns {Promise} API响应
+ */
+export const regenerateArticle = (data) => {
+  return post('/article/generate', data);
 };

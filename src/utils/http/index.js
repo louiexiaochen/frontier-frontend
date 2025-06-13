@@ -66,7 +66,7 @@ http.interceptors.response.use(
     }
     // 检查响应是否成功
     if (res.code != 0 || res.success === false || (res.code && !String(res.code).startsWith('2') && res.code != 0)) {
-      message.error(res.message || '请求失败');
+      message.error(res.message || res.msg || '请求失败，后端未返回消息');
       return res;
     }
     
@@ -99,8 +99,7 @@ http.interceptors.response.use(
         return Promise.reject(error);
       }
       
-      // 处理其他错误
-      const errorMsg = error.response.data?.message || '请求失败';
+      const errorMsg = error.response.data?.message || error.response.data?.msg || '请求失败，后端未返回消息';
       message.error(errorMsg);
       return Promise.reject(error);
     } else if (error.request) {

@@ -8,15 +8,54 @@
 
       <!--Essay content-->
       <div class="essay-container">
-          <!-- 返回按钮 -->
-          <!-- <div class="back-button-container">
-              <button class="back-button" @click="$router.push('/home/reading')">
-                  返回
-              </button>
+          <!-- Loading State -->
+          <div v-if="isLoading" class="loading-container">
+              <div class="loading-spinner"></div>
+              <p class="loading-text">加载中...</p>
           </div>
-           -->
+          
+          <!-- Error State -->
+          <div v-else-if="apiError" class="error-container">
+              <div class="error-icon">❌</div>
+              <h2 class="error-title">加载失败</h2>
+              <p class="error-message">{{ apiError }}</p>
+              <div class="error-actions">
+                <button class="retry-button" @click="fetchEssayData">重试</button>
+                <button class="regenerate-button ml-4" @click="handleArticle">重新生成</button>
+              </div>
+          </div>
+          
+          <!-- 文章生成中 -->
+          <div v-else-if="articleStatus === ARTICLE_STATUS.GENERATING" class="status-container">
+              <div class="status-icon">⏳</div>
+              <h2 class="status-title">{{ getStatusDescription(articleStatus) }}</h2>
+              <p class="status-message">请稍候，系统正在生成文章内容...</p>
+          </div>
+          
+          <!-- 文章生成错误 -->
+          <div v-else-if="articleStatus === ARTICLE_STATUS.ERROR" class="status-container">
+              <div class="status-icon">⚠️</div>
+              <h2 class="status-title">{{ getStatusDescription(articleStatus) }}</h2>
+              <p class="status-message">很抱歉，文章生成过程中出现错误</p>
+              <button class="regenerate-button" @click="handleArticle">重新生成</button>
+          </div>
+          
+          <!-- 文章正在重新生成 -->
+          <div v-else-if="articleStatus === ARTICLE_STATUS.REGENERATING" class="status-container">
+              <div class="status-icon">🔄</div>
+              <h2 class="status-title">{{ getStatusDescription(articleStatus) }}</h2>
+              <p class="status-message">请稍候，系统正在重新生成文章内容...</p>
+          </div>
+          
+          <!-- Empty State -->
+          <div v-else-if="!essayData.title && !isLoading" class="empty-container">
+              <div class="empty-icon">📝</div>
+              <h2 class="empty-title">暂无文章内容</h2>
+              <p class="empty-message">当前没有可用的文章内容</p>
+          </div>
+          
           <!-- Content Area -->
-          <div class="content-area">
+          <div v-else class="content-area">
               <!-- Essay Content with Split View -->
               <div class="essay-content-container">
                   <!-- Article Section (Left) -->
@@ -33,8 +72,7 @@
                   <QuestionsSection 
                     :width="100 - leftWidth"
                     :questionModules="essayData.questionModules"
-                    :initialAnswers="allAnswers"
-                    @update:answers="handleAnswerUpdate"
+                    :is-finished="isFinished"
                     @submit="submitAnswers"
                   />
               </div>
@@ -44,74 +82,146 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue';
+import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
-import { getArticleDetail, submitArticleAnswers } from '@/api/article';
+import { getArticleDetail, submitArticleAnswers, regenerateArticle } from '@/api/article';
+import { normalizeQuestionType } from '@/utils/answerUtils';
 
 // 导入拆分后的组件
 import ArticleSection from '../components/essay/ArticleSection.vue';
 import Resizer from '../components/essay/Resizer.vue';
 import QuestionsSection from '../components/essay/QuestionsSection.vue';
 
+// 文章状态常量
+const ARTICLE_STATUS = {
+  UNKNOWN: 0,    // 未知状态
+  GENERATING: 1, // 文章正在生成中
+  ERROR: 2,      // 文章生成错误
+  REGENERATING: 3, // 文章正在重新生成中
+  COMPLETED: 4,  // 文章生成完成
+  STUDIED: 5     // 文章已学习完成
+};
+
+// 获取状态描述
+const getStatusDescription = (status) => {
+  switch (status) {
+    case ARTICLE_STATUS.GENERATING:
+      return '文章生成中';
+    case ARTICLE_STATUS.ERROR:
+      return '文章生成错误';
+    case ARTICLE_STATUS.REGENERATING:
+      return '文章重新生成中';
+    case ARTICLE_STATUS.COMPLETED:
+      return '文章生成完成';
+    case ARTICLE_STATUS.STUDIED:
+      return '文章已学习完成';
+    default:
+      return '未知状态';
+  }
+};
+
 const router = useRouter();
 const route = useRoute();
 const essayId = computed(() => route.params.id || '未知文章');
-const isLoading = ref(false);
+const isLoading = ref(true);
 const apiError = ref(null);
+const isFinished = ref(false);
+const articleStatus = ref(ARTICLE_STATUS.UNKNOWN);
 
-// All answers data
-const allAnswers = ref({});
+// 用于控制API请求的状态
+const isComponentMounted = ref(true);
+const pollingTimerId = ref(null);
+const isPolling = ref(false);
 
-// Handle answers update from any question component
-const handleAnswerUpdate = ({ type, answers }) => {
-  allAnswers.value[type] = answers;
-  console.log('Updated answers:', allAnswers.value);
+// 清除轮询定时器
+const clearPollingTimer = () => {
+  if (pollingTimerId.value) {
+    clearTimeout(pollingTimerId.value);
+    pollingTimerId.value = null;
+  }
+};
+
+// 重新生成文章
+const handleArticle = async () => {
+  if (!isComponentMounted.value) return;
+  
+  // 防止重复点击
+  if (isLoading.value) return;
+  
+  try {
+    isLoading.value = true;
+    clearPollingTimer();
+    
+    const articleId = extractArticleId(essayId.value);
+    
+    if (!articleId) {
+      apiError.value = '无效的文章ID，无法重新生成';
+      isLoading.value = false;
+      return;
+    }
+    // 调用重新生成接口
+    const response = await regenerateArticle({
+      article_id: articleId
+    });
+    
+    if (!isComponentMounted.value) return;
+    
+    if (response && response.code === 0) {
+      // 更新状态为"文章正在重新生成"
+      articleStatus.value = ARTICLE_STATUS.REGENERATING;
+      apiError.value = null;
+      // 启动轮询
+      startPolling();
+    } else {
+      apiError.value = response?.msg || '重新生成请求失败';
+    }
+  } catch (error) {
+    if (!isComponentMounted.value) return;
+    apiError.value = '重新生成文章时发生错误，请稍后再试';
+  } finally {
+    if (isComponentMounted.value) {
+      isLoading.value = false;
+    }
+  }
 };
 
 // 提交答案
 const submitAnswers = async () => {
+  if (!isComponentMounted.value) return;
+  
+  // 防止重复提交
+  if (isLoading.value) return;
+  
   try {
-    console.log('提交所有答案:', allAnswers.value);
-    
-    // 将答案格式转换为API需要的格式
-    const formattedAnswers = formatAnswersForSubmission(allAnswers.value);
-    
-    // 从essayId中提取文章ID（如果是从课程生成的文章，essayId可能包含前缀）
+    isLoading.value = true;
     const articleId = extractArticleId(essayId.value);
-    
-    // 调用API提交答案
-    const response = await submitArticleAnswers(articleId, formattedAnswers);
+        if (!articleId) {
+      return;
+    }
+        // 调用API提交答案
+    const response = await submitArticleAnswers(articleId);
+        if (!isComponentMounted.value) return;
     
     if (response.code === 0) {
-      // 提交成功，显示结果或跳转到结果页面
-      alert('答案提交成功！得分：' + response.data.score);
+      // 提交成功，设置已完成状态，显示正确答案
+      isFinished.value = true;
+      
+      // 重新获取文章详情，获取最新的答案状态
+      await fetchEssayData();
     } else {
       // 提交失败，显示错误信息
-      alert('提交失败：' + response.msg);
+      apiError.value = response.msg || '提交答案失败，请稍后重试';
     }
   } catch (error) {
-    console.error('提交答案时出错:', error);
-    alert('提交答案时发生错误，请稍后重试');
+    if (isComponentMounted.value) {
+      console.error('提交答案时出错:', error);
+      apiError.value = '提交答案时发生错误，请稍后重试';
+    }
+  } finally {
+    if (isComponentMounted.value) {
+      isLoading.value = false;
+    }
   }
-};
-
-// 将答案转换为API需要的格式
-const formatAnswersForSubmission = (answers) => {
-  const result = [];
-  
-  // 遍历所有问题类型
-  Object.entries(answers).forEach(([type, typeAnswers]) => {
-    // 遍历该类型下的所有问题答案
-    Object.entries(typeAnswers).forEach(([questionId, answer]) => {
-      result.push({
-        question_id: questionId,
-        answer: answer,
-        type: type
-      });
-    });
-  });
-  
-  return result;
 };
 
 // 从essayId中提取文章ID
@@ -176,316 +286,233 @@ const stopResize = () => {
   window.removeEventListener('touchend', stopResize);
 };
 
-// 模拟文章和问题数据（作为备用）
-const essayData = ref({
-  title: "The Future of Artificial Intelligence",
-  paragraphs: [
-    "Artificial Intelligence (AI) has rapidly evolved from a niche research field to a transformative force across various industries. With advancements in machine learning, natural language processing, and neural networks, AI systems can now perform tasks that once required human intelligence.",
+// 启动轮询
+const startPolling = () => {
+  if (isPolling.value || !isComponentMounted.value) return;
+  isPolling.value = true;
+    // 确保先清除之前的定时器
+  clearPollingTimer();
+  
+  pollingTimerId.value = setTimeout(async () => {
+    if (!isComponentMounted.value) {
+      isPolling.value = false;
+      return;
+    }
     
-    "The healthcare sector has witnessed significant AI integration, from diagnostic tools that can identify diseases from medical images to predictive analytics that forecast patient outcomes. AI algorithms can analyze vast amounts of medical data at unprecedented speeds, potentially leading to earlier disease detection and more personalized treatment plans.",
-    
-    "In education, AI-powered adaptive learning platforms tailor educational content to individual students' needs, identifying knowledge gaps and adjusting difficulty levels accordingly. This personalization can make learning more effective and engaging for students of different abilities and learning styles.",
-    
-    "The transportation industry is undergoing a revolution with autonomous vehicles and AI-optimized logistics systems. Self-driving cars promise to reduce accidents caused by human error, while smart traffic management systems can alleviate congestion and reduce emissions in urban areas.",
-    
-    "However, the rapid advancement of AI also raises important ethical considerations. Issues surrounding data privacy, algorithmic bias, job displacement, and the potential misuse of AI for surveillance or autonomous weapons require careful consideration and regulatory frameworks.",
-    
-    "Furthermore, as AI systems become more capable, questions about transparency and explainability become increasingly important. Understanding how AI reaches its conclusions is vital, especially in critical applications like healthcare, criminal justice, and finance.",
-    
-    "Looking ahead, the development of artificial general intelligence (AGI) – AI systems with human-level cognitive abilities across a wide range of tasks – remains a long-term goal with profound implications. While AGI might still be decades away, it underscores the importance of establishing robust safety measures and ethical guidelines now.",
-    
-    "In conclusion, AI presents tremendous opportunities to address complex challenges in healthcare, education, transportation, and beyond. Realizing this potential while mitigating risks will require collaboration among technologists, policymakers, ethicists, and the public to ensure that AI development proceeds in a manner that benefits humanity."
-  ],
-  // Definition of the question types to render
-  questionModules: [
-    {
-      type: 'true-false',
-      data: {
-        questions: [
-          { id: 'tf1', text: 'AI systems can perform tasks that once required human intelligence.' },
-          { id: 'tf2', text: 'The healthcare sector has seen little benefit from AI integration.' },
-          { id: 'tf3', text: 'AI-powered learning platforms can personalize content for different students.' }
-        ]
-      }
-    },
-    {
-      type: 'single-choice',
-      data: {
-        questions: [
-          { 
-            id: 'sc1', 
-            text: 'According to the passage, what is a benefit of AI in healthcare?',
-            options: [
-              'Replacing all healthcare workers',
-              'Analyzing medical data at high speeds',
-              'Reducing the cost of medical equipment',
-              'Eliminating the need for medical research'
-            ]
-          },
-          {
-            id: 'sc2',
-            text: 'What does the author suggest about AGI?',
-            options: [
-              'It already exists in limited forms',
-              'It will never be achieved',
-              'It could have profound implications and is a long-term goal',
-              'It should be the immediate focus of AI research'
-            ]
+    try {
+      isPolling.value = false;
+      await fetchEssayData();
+    } catch (error) {
+      console.error('轮询过程中出错:', error);
+      
+      if (isComponentMounted.value) {
+        // 如果出错，延迟后重试
+        pollingTimerId.value = setTimeout(() => {
+          if (isComponentMounted.value) {
+            startPolling();
           }
-        ]
-      }
-    },
-    {
-      type: 'multiple-choice',
-      data: {
-        questions: [
-          {
-            id: 'mc1',
-            text: 'Which TWO areas of concern does the author mention regarding AI development?',
-            options: [
-              'Data privacy',
-              'Environmental impact',
-              'Job displacement',
-              'Algorithmic bias',
-              'Cultural differences'
-            ]
-          }
-        ]
-      }
-    },
-    {
-      type: 'fill-in-blanks',
-      data: {
-        questions: [
-          {
-            id: 'fb1',
-            text: "AI systems can now perform tasks that once required [BLANK] intelligence.",
-            maxWords: 2
-          },
-          {
-            id: 'fb2',
-            text: "Self-driving cars promise to reduce [BLANK] caused by human error.",
-            maxWords: 2
-          }
-        ]
-      }
-    },
-    {
-      type: 'matching',
-      data: {
-        questions: [
-          { id: 'match1', text: 'A field where AI can analyze medical data at high speeds' },
-          { id: 'match2', text: 'A field where AI personalizes content for different students' },
-          { id: 'match3', text: 'A field where self-driving vehicles can reduce human error' }
-        ],
-        sections: [
-          { text: 'Healthcare' },
-          { text: 'Education' },
-          { text: 'Transportation' },
-          { text: 'Finance' }
-        ]
-      }
-    },
-    {
-      type: 'paragraph-heading',
-      data: {
-        paragraphs: [
-          { 
-            id: 'p1', 
-            label: 'A', 
-            preview: 'Artificial Intelligence has rapidly evolved from a niche research field...' 
-          },
-          { 
-            id: 'p2', 
-            label: 'B', 
-            preview: 'The healthcare sector has witnessed significant AI integration...' 
-          },
-          { 
-            id: 'p3', 
-            label: 'C', 
-            preview: 'In education, AI-powered adaptive learning platforms tailor...' 
-          }
-        ],
-        headings: [
-          { text: 'Introduction to AI Development' },
-          { text: 'Medical Applications of AI' },
-          { text: 'Personalized Learning Through AI' },
-          { text: 'Ethical Concerns in AI Implementation' }
-        ]
+        }, 5000); // 出错后等待5秒再重试
       }
     }
-  ]
-});
+  }, 3000);
+};
 
 // 从API获取文章数据
 const fetchEssayData = async () => {
+  if (!isComponentMounted.value) return;
+  
+  clearPollingTimer();
   isLoading.value = true;
   apiError.value = null;
   
   try {
-    // 从essayId中提取文章ID
     const articleId = extractArticleId(essayId.value);
+    
+    if (!articleId) {
+      apiError.value = '无效的文章ID';
+      isLoading.value = false;
+      return;
+    }
+        console.log('获取文章数据:', articleId);
     
     // 调用API获取文章详情
     const response = await getArticleDetail(articleId);
     
-    if (response.code === 0 && response.data) {
-      // 将API返回的数据转换为组件需要的格式
-      const apiData = response.data;
-      
-      // 更新文章数据
-      essayData.value = {
-        title: apiData.article.title,
-        paragraphs: apiData.article.content.split('\n\n'), // 按段落分割文章内容
-        questionModules: formatQuestionsFromApi(apiData.questions)
-      };
-      
-      console.log('成功获取文章数据:', essayData.value);
-    } else {
-      // API请求成功但返回错误
-      console.error('获取文章失败:', response.msg || '未知错误');
-      apiError.value = response.msg || '获取文章失败，请稍后重试';
-      // 保留模板数据作为备用
+    if (!isComponentMounted.value) return;
+    
+    if (processApiResponse(response)) {
+      console.log('成功获取文章数据');
     }
   } catch (error) {
     // API请求失败
+    if (!isComponentMounted.value) return;
+    
     console.error('获取文章时出错:', error);
     apiError.value = '获取文章时发生错误，请稍后重试';
-    // 保留模板数据作为备用
   } finally {
-    isLoading.value = false;
-    
-    // 初始化答案对象结构
-    essayData.value.questionModules.forEach(module => {
-      allAnswers.value[module.type] = {};
-    });
+    if (isComponentMounted.value) {
+      isLoading.value = false;
+    }
   }
+};
+
+// 处理API返回的数据
+const processApiResponse = (response) => {
+  if (response.code === 0 && response.data) {
+    const apiData = response.data;
+    
+    // 保存文章状态
+    articleStatus.value = apiData.status || ARTICLE_STATUS.UNKNOWN;
+    
+    // 根据文章状态处理
+    switch (apiData.status) {
+      case ARTICLE_STATUS.COMPLETED:
+      case ARTICLE_STATUS.STUDIED:
+        try {
+          processArticleData(apiData);
+        } catch (formatError) {
+          handleDataFormatError(formatError);
+        }
+        break;
+        
+      case ARTICLE_STATUS.GENERATING:
+      case ARTICLE_STATUS.REGENERATING:
+        startPolling();
+        break;
+        
+      case ARTICLE_STATUS.ERROR:
+        apiError.value = '文章生成失败，请尝试重新生成';
+        break;
+        
+      default:
+        apiError.value = `未知的文章状态: ${apiData.status}`;
+        break;
+    }
+    return true;
+  } else {
+    handleApiError(response);
+    return false;
+  }
+};
+
+// 处理API错误
+const handleApiError = (response) => {
+  console.error('获取文章失败:', response.msg || '未知错误');
+  apiError.value = response.msg || '获取文章失败，请稍后重试';
+};
+
+// 处理数据格式错误
+const handleDataFormatError = (error) => {
+  console.error('文章数据格式错误:', error);
+  apiError.value = '文章数据格式错误，请尝试重新生成';
+  articleStatus.value = ARTICLE_STATUS.ERROR; // 设置为错误状态
+};
+
+// 处理文章数据
+const processArticleData = (apiData) => {
+  essayData.value = {
+    title: apiData.title || '',
+    paragraphs: Array.isArray(apiData.paragraphs) ? apiData.paragraphs : [],
+    questionModules: formatQuestionsFromApi(apiData.questions || [])
+  };
+  
+  // 设置是否已完成状态
+  isFinished.value = apiData.is_finished || apiData.status === ARTICLE_STATUS.STUDIED;
+  
+  console.log('成功获取文章数据');
 };
 
 // 将API返回的问题数据转换为组件需要的格式
 const formatQuestionsFromApi = (apiQuestions) => {
-  // 按问题类型分组
-  const questionsByType = {};
+  // 确保apiQuestions是数组
+  if (!Array.isArray(apiQuestions)) {
+    console.error('问题数据格式错误：不是数组', apiQuestions);
+    return [];
+  }
   
-  apiQuestions.forEach(q => {
-    // 根据题型JSON格式中的type字段进行分类
-    const type = q.type || 'single_choice'; // 默认为单选题
-    if (!questionsByType[type]) {
-      questionsByType[type] = [];
-    }
-    questionsByType[type].push(q);
-  });
-  
-  // 转换为组件需要的格式
-  const modules = [];
-  
-  // 处理判断题 (true_false)
-  if (questionsByType['true_false']) {
-    modules.push({
-      type: 'true-false',
-      data: {
-        questions: questionsByType['true_false'].map(q => ({
-          id: q.id.toString(),
-          text: q.text,
-          correctAnswer: q.correctAnswer // 0:false, 1:true, -1:not given
-        }))
+  try {
+    // 按问题类型分组
+    const questionsByType = apiQuestions.reduce((acc, q) => {
+      // 跳过无效的问题数据
+      if (!q || typeof q !== 'object') {
+        console.warn('跳过无效的问题数据', q);
+        return acc;
       }
-    });
-  }
-  
-  // 处理单选题 (single_choice)
-  if (questionsByType['single_choice']) {
-    modules.push({
-      type: 'single-choice',
-      data: {
-        questions: questionsByType['single_choice'].map(q => ({
-          id: q.id.toString(),
-          text: q.text,
-          options: q.options,
-          correctAnswer: q.correctAnswer
-        }))
+      
+      const type = q.type || 'unknown';
+      
+      if (!acc[type]) {
+        acc[type] = [];
       }
-    });
-  }
-  
-  // 处理多选题 (double_choice)
-  if (questionsByType['double_choice']) {
-    modules.push({
-      type: 'multiple-choice',
-      data: {
-        questions: questionsByType['double_choice'].map(q => ({
-          id: q.id.toString(),
-          text: q.text,
-          options: q.options,
-          correctAnswers: q.correctAnswers
-        }))
+      
+      acc[type].push(q);
+      return acc;
+    }, {});
+    
+    // 转换为组件需要的格式
+    return Object.entries(questionsByType).map(([type, questions]) => {
+      try {
+        // 标准化题型名称
+        const normalizedType = normalizeQuestionType(type);
+        
+        // 创建题型模块
+        return {
+          type: normalizedType,
+          data: {
+            // 直接传递原始问题数据，让各组件自行处理
+            questions: questions.map(q => ({
+              ...q,
+              id: q.id || `temp-${Math.random().toString(36).substring(2, 10)}`,
+              text: q.text || q.content || '问题内容缺失',
+              correctAnswer: q.correct_answer,
+              is_correct: q.is_correct,
+              user_answer: q.user_answer
+            }))
+          }
+        };
+      } catch (error) {
+        return null;
       }
-    });
+    }).filter(Boolean); // 过滤掉null值
+  } catch (error) {
+    return [];
   }
-  
-  // 处理填空题 (fill_in_blanks)
-  if (questionsByType['fill_in_blanks']) {
-    modules.push({
-      type: 'fill-in-blanks',
-      data: {
-        questions: questionsByType['fill_in_blanks'].map(q => ({
-          id: q.id.toString(),
-          text: q.text.replace('[BLANK]', '[BLANK]'),
-          correctAnswer: q.correctAnswer,
-          maxWords: 5 // 默认允许最多5个单词
-        }))
-      }
-    });
-  }
-  
-  // 处理匹配题 (matching)
-  if (questionsByType['matching']) {
-    const matchingQuestions = questionsByType['matching'];
-    if (matchingQuestions.length > 0) {
-      const q = matchingQuestions[0]; // 获取第一个匹配题
-      modules.push({
-        type: 'matching',
-        data: {
-          passageTitle: q.title || "Passage Title",
-          passage: q.text || "",
-          options: q.words.map(word => word.content),
-          correctMapping: q.correct_mapping || {}
-        }
-      });
-    }
-  }
-  
-  // 处理段落标题匹配题 (paragraph_heading)
-  if (questionsByType['paragraph_heading']) {
-    const paragraphQuestions = questionsByType['paragraph_heading'];
-    if (paragraphQuestions.length > 0) {
-      const q = paragraphQuestions[0]; // 获取第一个段落标题匹配题
-      modules.push({
-        type: 'paragraph-heading',
-        data: {
-          headings: q.headings.map(heading => ({ 
-            text: heading.content,
-            id: heading.id
-          })),
-          correctMapping: q.correct_mapping || {}
-        }
-      });
-    }
-  }
-  
-  return modules;
 };
 
-// 清理事件监听器
+// 模拟文章和问题数据（作为备用）
+const essayData = ref({
+  title: "",
+  paragraphs: [],
+  questionModules: []
+});
+
+// 清理事件监听器和定时器
 onBeforeUnmount(() => {
+  // 标记组件已卸载
+  isComponentMounted.value = false;
+  
+  // 清理resize事件监听器
   window.removeEventListener('mousemove', handleResize);
   window.removeEventListener('touchmove', handleResize);
   window.removeEventListener('mouseup', stopResize);
   window.removeEventListener('touchend', stopResize);
+  
+  // 清理定时器
+  clearPollingTimer();
+});
+
+// 监听路由变化，如果路由改变，停止所有请求和轮询
+watch(() => route.path, (newPath, oldPath) => {
+  // 只有当路径真正改变且不再是当前文章页面时才清理
+  if (newPath !== oldPath && !newPath.includes(`/essay/${essayId.value}`)) {
+    isComponentMounted.value = false;
+    clearPollingTimer();
+  }
 });
 
 // 页面加载时初始化
 onMounted(() => {
+  isComponentMounted.value = true;
   // 从后端加载文章和问题数据
   fetchEssayData();
 });
@@ -494,119 +521,132 @@ onMounted(() => {
 <style scoped>
   /* 背景效果 */
   .essay-page {
-      position: relative;
-      width: 100%;
-      background-color: #121212;
-      color: white;
-      overflow: hidden;
+    @apply relative w-full bg-[#121212] text-white overflow-hidden min-h-screen;
   }
   
   .background-effects {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      z-index: 0;
-      overflow: hidden;
+    @apply absolute top-0 left-0 w-full h-full z-0 overflow-hidden;
   }
   
   .gradient-orb {
-      position: absolute;
-      width: 40vw;
-      height: 40vw;
-      border-radius: 50%;
-      filter: blur(80px);
-      opacity: 0.3;
+    @apply absolute w-[40vw] h-[40vw] rounded-full opacity-30;
+    filter: blur(80px);
   }
   
   .top-left {
-      top: -20vw;
-      left: -20vw;
-      background: linear-gradient(45deg, #4A99E9, #5C2797);
+    @apply -top-[20vw] -left-[20vw];
+    background: linear-gradient(45deg, #4A99E9, #5C2797);
   }
   
   .bottom-right {
-      bottom: -20vw;
-      right: -20vw;
-      background: linear-gradient(45deg, #5C2797, #4A99E9);
+    @apply -bottom-[20vw] -right-[20vw];
+    background: linear-gradient(45deg, #5C2797, #4A99E9);
   }
   
   .grid-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background-image: 
-          linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
-      background-size: 20px 20px;
+    @apply absolute top-0 left-0 w-full h-full;
+    background-image: 
+        linear-gradient(rgba(255, 255, 255, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, 0.03) 1px, transparent 1px);
+    background-size: 20px 20px;
   }
 
   /* Essay Container */
   .essay-container {
-      position: relative;
-      z-index: 1;
-      padding: 1rem;
-      overflow: hidden;
-      touch-action: pan-y;
-      -webkit-overflow-scrolling: touch;
-      margin: 0 auto;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
+    @apply relative z-10 p-4 overflow-hidden touch-pan-y m-auto h-[94%] flex flex-col;
+    -webkit-overflow-scrolling: touch;
   }
   
-  /* 返回按钮 */
-  .back-button-container {
-      margin-bottom: 0.5rem;
-  }
-  
-  .back-button {
-      background-color: #4A99E9;
-      color: white;
-      border: none;
-      border-radius: 0.5rem;
-      padding: 0.5rem 1.2rem;
-      font-size: 1rem;
-      font-weight: 600;
-      cursor: pointer;
-      transition: all 0.3s;
-      box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-  }
-  
-  .back-button:hover {
-      background-color: #3d7fbf;
-      transform: translateY(-2px);
-      box-shadow: 0 6px 8px rgba(0, 0, 0, 0.15);
-  }
-
   /* Content Area */
   .content-area {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      width: 100%;
-      height: calc(100vh - 5rem);
-      overflow: hidden;
+    @apply flex-1 flex flex-col w-full h-[calc(100vh-5rem)] overflow-hidden;
   }
 
   /* Essay Content with Split View */
   .essay-content-container {
-      display: flex;
-      flex: 1;
-      gap: 0;
-      overflow: hidden;
-      position: relative;
-      border-radius: 0.75rem;
-      box-shadow: 0 8px 30px rgba(0, 0, 0, 0.2);
+    @apply flex flex-1 gap-0 overflow-hidden relative rounded-xl shadow-xl h-full;
+  }
+  
+  /* Loading State */
+  .loading-container {
+    @apply flex flex-col items-center justify-center h-[calc(100vh-8rem)] w-full;
+  }
+  
+  .loading-spinner {
+    @apply w-16 h-16 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin mb-4;
+  }
+  
+  .loading-text {
+    @apply text-xl text-white/80 font-medium;
+  }
+  
+  /* Error State */
+  .error-container {
+    @apply flex flex-col items-center justify-center h-[calc(100vh-8rem)] w-full;
+  }
+  
+  .error-icon {
+    @apply text-5xl mb-4;
+  }
+  
+  .error-title {
+    @apply text-2xl font-bold mb-2;
+  }
+  
+  .error-message {
+    @apply text-white/70 mb-6 text-center;
+  }
+  
+  .error-actions {
+    @apply flex flex-wrap gap-3 justify-center;
+  }
+  
+  .retry-button {
+    @apply bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full transition-colors;
+  }
+  
+  /* Status Container (用于显示文章状态) */
+  .status-container {
+    @apply flex flex-col items-center justify-center h-[calc(100vh-8rem)] w-full;
+  }
+  
+  .status-icon {
+    @apply text-6xl mb-4;
+  }
+  
+  .status-title {
+    @apply text-2xl font-bold mb-2;
+  }
+  
+  .status-message {
+    @apply text-white/70 text-center mb-6;
+  }
+  
+  .regenerate-button {
+    @apply bg-blue-500 hover:bg-blue-600 text-white px-6 py-2 rounded-full transition-colors;
+  }
+  
+  /* Empty State */
+  .empty-container {
+    @apply flex flex-col items-center justify-center h-[calc(100vh-8rem)] w-full;
+  }
+  
+  .empty-icon {
+    @apply text-6xl mb-4;
+  }
+  
+  .empty-title {
+    @apply text-2xl font-bold mb-2;
+  }
+  
+  .empty-message {
+    @apply text-white/70 text-center;
   }
   
   /* 响应式设计 */
   @media (max-width: 768px) {
-      .essay-content-container {
-          flex-direction: column;
-      }
+    .essay-content-container {
+      @apply flex-col;
+    }
   }
 </style>

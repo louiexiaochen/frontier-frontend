@@ -167,9 +167,9 @@
             
             <!-- 新建课程按钮 -->
             <div 
+              v-if="!isNewLessonDisabled"
               class="w-[8rem] md:w-[10rem] h-[8rem] md:h-[10rem] bg-[#191919] rounded-2xl absolute flex flex-col items-center justify-center cursor-pointer transition-all duration-300 hover:-translate-y-1.5 hover:shadow-lg"
               :class="{ 
-                'opacity-50 cursor-not-allowed hover:transform-none': isNewLessonDisabled, 
                 'left-0': isLeftSide(filteredLessons.length), 
                 'right-0': !isLeftSide(filteredLessons.length) 
               }" 
@@ -224,8 +224,14 @@ const allLessons = ref([]);
 const currentUnit = computed(() => units.value.find(unit => unit.id === selectedUnitId.value));
 const filteredLessons = computed(() => allLessons.value);
 const isNewLessonDisabled = computed(() => {
-  // 移除进度限制，使用户总是可以新建课程
-  return false;
+  // 如果没有课程，允许创建第一个课程
+  if (filteredLessons.value.length === 0) {
+    return false;
+  }
+  
+  // 检查最后一个课程是否完成（进度为100%）
+  const lastLesson = filteredLessons.value[filteredLessons.value.length - 1];
+  return lastLesson && lastLesson.progress < 100;
 });
 const containerHeight = computed(() => {
   // 计算容器的总高度，加上额外的空间用于hover效果
@@ -465,6 +471,12 @@ const selectUnitIfValid = async (unitId) => {
   
   if (validUnit) {
     console.log('找到有效单元:', validUnit);
+    // 检查当前选中的单元ID是否已经是目标单元ID
+    if (selectedUnitId.value === unitId.toString()) {
+      console.log('单元已经被选中，无需重新加载:', unitId.toString());
+      return;
+    }
+    
     try {
       // 直接获取课程数据
       const response = await getUnitCourses(unitId.toString());
@@ -485,10 +497,16 @@ const selectUnitIfValid = async (unitId) => {
 };
 
 // ==================== 路由监听 ====================
-watch(() => route.query.unit, (newUnit) => {
-  console.log('路由参数变化 unit:', newUnit, typeof newUnit);
+watch(() => route.query.unit, (newUnit, oldUnit) => {
+  console.log('路由参数变化 unit:', newUnit, typeof newUnit, 'oldUnit:', oldUnit);
   if (!newUnit) {
     selectedUnitId.value = null;
+    return;
+  }
+  
+  // 如果新旧值相同，不重复加载
+  if (newUnit === oldUnit) {
+    console.log('单元ID未变化，跳过重新加载');
     return;
   }
   

@@ -471,8 +471,7 @@ const navigation = {
         router.push(`/reading/essay/${response.data.article_id}`);
       }
     } catch (error) {
-      console.error('生成文章时出错:', error);
-      router.push(`/reading/essay/essay-course-${route.params.id}`);
+      
     }
   }
 };
