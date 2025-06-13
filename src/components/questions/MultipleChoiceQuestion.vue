@@ -111,6 +111,9 @@ const isOptionSelected = (questionId, optionIndex) => {
 };
 
 const toggleAnswer = async (questionId, optionIndex) => {
+  // 如果已完成，不允许再选择答案
+  if (props.isFinished) return;
+
   if (!selectedAnswers.value[questionId]) {
     selectedAnswers.value[questionId] = [];
   }

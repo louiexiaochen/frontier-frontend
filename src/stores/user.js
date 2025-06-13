@@ -42,7 +42,8 @@ export const useUserStore = defineStore('user', () => {
       isLoading.value = true
       error.value = null
       const response = await apiLogin({
-        username:email,
+        email: email,
+        username: email,
         password
       })
       console.log('登录响应',response);
@@ -68,7 +69,12 @@ export const useUserStore = defineStore('user', () => {
     try {
       isLoading.value = true
       error.value = null
-      const response = await apiRegister(userData)
+      const response = await apiRegister({
+        username: userData.username || userData.email,
+        email: userData.email,
+        password: userData.password,
+        code: userData.code
+      })
       // 检查响应是否成功
       if (response) {
         token.value = response.data.token

@@ -11,13 +11,17 @@
         <p class="login-subtitle">{{ $t('login.subtitle') }}</p>
         
         <form @submit.prevent="handleLogin">
+          <div class="error-message" v-if="loginError">
+            {{ loginError }}
+          </div>
+          
           <div class="form-group">
-            <label for="username">{{ $t('login.username') }}</label>
+            <label for="email">{{ $t('login.email') }}</label>
             <input 
-              id="username" 
-              type="text" 
-              v-model="username" 
-              :placeholder="$t('login.usernamePlaceholder')"
+              id="email" 
+              type="email" 
+              v-model="email" 
+              :placeholder="$t('login.emailPlaceholder')"
               required
             />
           </div>
@@ -26,7 +30,7 @@
             <div class="flex justify-between mb-2">
               <label for="password">{{ $t('login.password') }}</label>
               <div class="forgot-password">
-                <a href="#" @click.prevent="handleForgotPassword">{{ $t('login.forgotPassword') }}</a>
+                <a href="#" @click.prevent="openForgotPassword">{{ $t('login.forgotPassword') }}</a>
               </div>
             </div>
             <div class="relative">
@@ -86,45 +90,253 @@
       </div>
     </div>
   </div>
+
+  <!-- 忘记密码模态窗口 -->
+  <div class="login-modal" v-if="showForgotPasswordModal">
+    <div class="modal-backdrop" @click="closeForgotPassword"></div>
+    <div class="modal-container">
+      <div class="login-card">
+        <div class="close-button-container">
+          <button class="close-button" @click="closeForgotPassword">×</button>
+        </div>
+        
+        <h1 class="login-title">{{ $t('login.resetPassword') }}</h1>
+        <p class="login-subtitle">{{ $t('login.resetPasswordSubtitle') }}</p>
+        
+        <form @submit.prevent="handleResetPassword">
+          <div class="error-message" v-if="resetError">
+            {{ resetError }}
+          </div>
+          
+          <div class="form-group">
+            <label for="reset-email">{{ $t('login.email') }}</label>
+            <input 
+              id="reset-email" 
+              type="email" 
+              v-model="resetEmail" 
+              :placeholder="$t('login.emailPlaceholder')"
+              required
+            />
+          </div>
+          
+          <div class="form-group">
+            <label for="reset-code">{{ $t('login.verificationCode') }}</label>
+            <div class="code-input-group">
+              <input 
+                id="reset-code" 
+                type="text" 
+                v-model="resetCode" 
+                :placeholder="$t('login.codePlaceholder')"
+                required
+              />
+              <button 
+                type="button" 
+                class="send-code-button" 
+                @click="sendResetCode"
+                :disabled="resetCodeSending || resetCodeCountdown > 0"
+              >
+                {{ resetCodeButtonText }}
+              </button>
+            </div>
+          </div>
+          
+          <div class="form-group">
+            <label for="new-password">{{ $t('login.newPassword') }}</label>
+            <div class="relative">
+              <input 
+                id="new-password" 
+                :type="showNewPassword ? 'text' : 'password'" 
+                v-model="newPassword"
+                class="w-full pr-10"
+                :placeholder="$t('login.newPasswordPlaceholder')"
+                required
+              />
+              <button 
+                type="button" 
+                class="absolute inset-y-0 right-0 flex items-center justify-center px-3 text-gray-400 hover:text-white"
+                @click="showNewPassword = !showNewPassword"
+                aria-label="切换密码可见性"
+              >
+                <svg 
+                  xmlns="http://www.w3.org/2000/svg" 
+                  width="20" 
+                  height="20" 
+                  viewBox="0 0 24 24" 
+                  fill="none" 
+                  stroke="currentColor" 
+                  stroke-width="2" 
+                  stroke-linecap="round" 
+                  stroke-linejoin="round"
+                >
+                  <template v-if="showNewPassword">
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                  </template>
+                  <template v-else>
+                    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"></path>
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <line x1="3" y1="3" x2="21" y2="21"></line>
+                  </template>
+                </svg>
+              </button>
+            </div>
+          </div>
+          
+          <button type="submit" class="login-button" :disabled="isResetting">
+            {{ isResetting ? $t('login.resetting') : $t('login.resetButton') }}
+          </button>
+          
+          <div class="signup-link">
+            <a href="#" @click.prevent="backToLogin">{{ $t('login.backToLogin') }}</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useUserStore } from '@/stores/user';
 import { useModalStore } from '@/stores/modal';
 import message from '@/utils/message';
+import { getEmailCode, resetPassword } from '@/api/user';
 
 const { t } = useI18n();
 const userStore = useUserStore();
 const modalStore = useModalStore();
 
-const username = ref('');
+const email = ref('');
 const password = ref('');
 const showPassword = ref(false);
 let passwordTooltip = null;
+const loginError = ref('');
+
+// 忘记密码相关
+const showForgotPasswordModal = ref(false);
+const resetEmail = ref('');
+const resetCode = ref('');
+const newPassword = ref('');
+const showNewPassword = ref(false);
+const resetError = ref('');
+const isResetting = ref(false);
+const resetCodeSending = ref(false);
+const resetCodeCountdown = ref(0);
+const resetCodeButtonText = computed(() => {
+  return resetCodeCountdown.value > 0 ? `${resetCodeCountdown.value}s` : t('login.sendCode');
+});
 
 const handleLogin = async () => {
   try {
-    const success = await userStore.login(username.value, password.value);
+    loginError.value = '';
+    const success = await userStore.login(email.value, password.value);
     
     if (success) {
       // 登录成功后关闭模态窗
       modalStore.closeLoginModal();
       // 清空表单
-      username.value = '';
+      email.value = '';
       password.value = '';
       // 不需要刷新页面,因为已经在login方法中加载了用户信息
+    } else {
+      loginError.value = userStore.error || t('login.errorMessage');
     }
   } catch (error) {
     console.error('登录失败:', error);
+    loginError.value = t('login.errorMessage');
   }
 };
 
-const handleForgotPassword = () => {
-  // 处理忘记密码
-  console.log('Forgot password');
-  message.info(t('login.passwordResetSent'), { duration: 5000 });
+const openForgotPassword = () => {
+  showForgotPasswordModal.value = true;
+  modalStore.closeLoginModal();
+};
+
+const closeForgotPassword = () => {
+  showForgotPasswordModal.value = false;
+  resetEmail.value = '';
+  resetCode.value = '';
+  newPassword.value = '';
+  resetError.value = '';
+};
+
+const backToLogin = () => {
+  closeForgotPassword();
+  modalStore.openLoginModal();
+};
+
+const sendResetCode = async () => {
+  if (!resetEmail.value) {
+    resetError.value = t('login.emailRequired');
+    return;
+  }
+  
+  try {
+    resetCodeSending.value = true;
+    resetError.value = '';
+    
+    // 获取当前时间戳作为参数t
+    const timestamp = new Date().getTime();
+    
+    const response = await getEmailCode({ 
+      email: resetEmail.value,
+      type: 'reset'
+    });
+    
+    if (response && response.code === 0) {
+      message.success(t('login.codeSent'));
+      startResetCodeCountdown();
+    } else {
+      resetError.value = response?.msg || t('login.sendCodeError');
+    }
+  } catch (error) {
+    console.error('发送验证码失败:', error);
+    resetError.value = t('login.sendCodeError');
+  } finally {
+    resetCodeSending.value = false;
+  }
+};
+
+const startResetCodeCountdown = () => {
+  resetCodeCountdown.value = 60;
+  const timer = setInterval(() => {
+    resetCodeCountdown.value--;
+    if (resetCodeCountdown.value <= 0) {
+      clearInterval(timer);
+    }
+  }, 1000);
+};
+
+const handleResetPassword = async () => {
+  if (!resetEmail.value || !resetCode.value || !newPassword.value) {
+    resetError.value = t('login.fillAllFields');
+    return;
+  }
+  
+  try {
+    isResetting.value = true;
+    resetError.value = '';
+    
+    const response = await resetPassword({
+      email: resetEmail.value,
+      code: resetCode.value,
+      password: newPassword.value
+    });
+    
+    if (response && response.code === 0) {
+      message.success(t('login.resetSuccess'));
+      closeForgotPassword();
+      modalStore.openLoginModal();
+    } else {
+      resetError.value = response?.msg || t('login.resetError');
+    }
+  } catch (error) {
+    console.error('重置密码失败:', error);
+    resetError.value = t('login.resetError');
+  } finally {
+    isResetting.value = false;
+  }
 };
 
 const toggleSignup = () => {
@@ -397,5 +609,22 @@ input:focus {
   opacity: 0.7;
   cursor: not-allowed;
   transform: none;
+}
+
+.code-input-group {
+  @apply flex gap-2;
+}
+
+.send-code-button {
+  @apply bg-[#4A99E9] text-white px-3 rounded text-sm whitespace-nowrap flex-shrink-0 transition-all duration-200;
+  min-width: 90px;
+}
+
+.send-code-button:hover:not(:disabled) {
+  @apply bg-[#3a89d9];
+}
+
+.send-code-button:disabled {
+  @apply bg-[#6c757d] cursor-not-allowed opacity-70;
 }
 </style>

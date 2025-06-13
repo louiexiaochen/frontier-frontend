@@ -24,6 +24,7 @@
                   @input="handleInput(question.id)"
                   @blur="handleBlur(question.id)"
                   :maxlength="question.maxLength || 30"
+                  :disabled="isFinished"
                   :class="{ 
                     'correct-answer': isFinished && question.is_correct === true, 
                     'wrong-answer': isFinished && question.is_correct === false 

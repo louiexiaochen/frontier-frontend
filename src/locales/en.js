@@ -31,7 +31,24 @@ export default {
     passwordResetSent: 'Password reset link has been sent to your email',
     successMessage: 'Login successful!',
     errorMessage: 'Login failed. Please try again.',
-    googleRedirect: 'Redirecting to Google authentication...'
+    googleRedirect: 'Redirecting to Google authentication...',
+    // 重置密码相关
+    resetPassword: 'Reset Password',
+    resetPasswordSubtitle: 'Enter your email and verification code to set a new password',
+    verificationCode: 'Verification Code',
+    codePlaceholder: 'Enter verification code',
+    sendCode: 'Send Code',
+    newPassword: 'New Password',
+    newPasswordPlaceholder: 'Set new password',
+    resetButton: 'Reset Password',
+    resetting: 'Resetting...',
+    resetSuccess: 'Password reset successful, please login',
+    resetError: 'Password reset failed, please try again',
+    sendCodeError: 'Failed to send verification code',
+    codeSent: 'Verification code sent',
+    emailRequired: 'Please enter your email address',
+    fillAllFields: 'Please fill in all fields',
+    backToLogin: 'Back to Login'
   },
   signup: {
     title: 'Sign Up',
@@ -56,7 +73,15 @@ export default {
     haveAccount: 'Already have an account?',
     successMessage: 'Account created successfully!',
     errorMessage: 'Failed to create account. Please try again.',
-    googleRedirect: 'Redirecting to Google authentication...'
+    googleRedirect: 'Redirecting to Google authentication...',
+    // 验证码相关
+    verificationCode: 'Verification Code',
+    codePlaceholder: 'Enter verification code',
+    sendCode: 'Send Code',
+    codeSent: 'Verification code sent',
+    sendCodeError: 'Failed to send verification code',
+    emailRequired: 'Please enter your email address',
+    fillAllFields: 'Please fill in all fields'
   },
   home: {
     tabs: {

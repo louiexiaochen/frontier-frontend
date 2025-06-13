@@ -43,7 +43,7 @@
         v-for="option in availableOptions" 
         :key="option"
         class="option-item"
-        draggable="true"
+        :draggable="!isFinished"
         @dragstart="onDragStart($event, option)"
       >
         {{ option }}
@@ -272,7 +272,10 @@ const availableOptions = computed(() => {
 
 // 拖拽开始
 const onDragStart = (event, option) => {
-  if (props.isFinished) return; // 如果已完成，不允许拖拽
+  if (props.isFinished) {
+    event.preventDefault();
+    return;
+  }
   event.dataTransfer.setData("text/plain", option);
 };
 

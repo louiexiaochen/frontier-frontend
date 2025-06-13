@@ -130,6 +130,9 @@ const extractArticleId = (id) => {
 
 // 更新答案
 const updateAnswer = async (headingIndex, paragraphNumber) => {
+  // 如果已完成，不允许再选择答案
+  if (props.isFinished) return;
+  
   // 更新答案
   const heading = headings.value[headingIndex];
   heading.user_answer = paragraphNumber;

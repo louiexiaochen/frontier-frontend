@@ -31,7 +31,24 @@ export default {
     loggingIn: '登录中...',
     hidePasswordTooltip: '隐藏密码',
     showPasswordTooltip: '显示密码',
-    passwordResetSent: '密码重置链接已发送到您的邮箱'
+    passwordResetSent: '密码重置链接已发送到您的邮箱',
+    // 重置密码相关
+    resetPassword: '重置密码',
+    resetPasswordSubtitle: '请输入您的邮箱和验证码，设置新密码',
+    verificationCode: '验证码',
+    codePlaceholder: '输入验证码',
+    sendCode: '发送验证码',
+    newPassword: '新密码',
+    newPasswordPlaceholder: '设置新密码',
+    resetButton: '重置密码',
+    resetting: '重置中...',
+    resetSuccess: '密码重置成功，请登录',
+    resetError: '密码重置失败，请重试',
+    sendCodeError: '发送验证码失败',
+    codeSent: '验证码已发送',
+    emailRequired: '请输入邮箱地址',
+    fillAllFields: '请填写所有字段',
+    backToLogin: '返回登录'
   },
   signup: {
     title: '注册',
@@ -56,7 +73,15 @@ export default {
     haveAccount: '已有账户？',
     successMessage: '账户创建成功！',
     errorMessage: '创建账户失败。请重试。',
-    googleRedirect: '正在重定向到谷歌认证...'
+    googleRedirect: '正在重定向到谷歌认证...',
+    // 验证码相关
+    verificationCode: '验证码',
+    codePlaceholder: '输入验证码',
+    sendCode: '发送验证码',
+    codeSent: '验证码已发送',
+    sendCodeError: '发送验证码失败',
+    emailRequired: '请输入邮箱地址',
+    fillAllFields: '请填写所有字段'
   },
   home: {
     tabs: {

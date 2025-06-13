@@ -89,6 +89,9 @@ const extractArticleId = (id) => {
 
 // Select an answer for a question
 const selectAnswer = async (questionId, optionIndex) => {
+  // 如果已完成，不允许再选择答案
+  if (props.isFinished) return;
+  
   selectedAnswers.value[questionId] = optionIndex;
   
   // 直接提交到API

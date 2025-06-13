@@ -6,7 +6,7 @@ import { setToken, removeToken } from '@/utils/http/tokenManager';
 
 /**
  * 用户注册
- * @param {Object} data - 注册信息 {username, email, password}
+ * @param {Object} data - 注册信息 {username, email, password, code}
  * @returns {Promise} 注册结果
  */
 export const register = async (data) => {
@@ -16,6 +16,24 @@ export const register = async (data) => {
     setToken(response.data.token);
   }
   return response;
+};
+
+/**
+ * 获取邮箱验证码
+ * @param {Object} data - 邮箱信息 {email, t, type}
+ * @returns {Promise} 发送结果
+ */
+export const getEmailCode = async (data) => {
+  return await post('/user/code', data);
+};
+
+/**
+ * 重置密码
+ * @param {Object} data - 重置信息 {email, code, password}
+ * @returns {Promise} 重置结果
+ */
+export const resetPassword = async (data) => {
+  return await post('/user/reset', data);
 };
 
 /**

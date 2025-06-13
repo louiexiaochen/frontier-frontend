@@ -34,6 +34,7 @@
                 :value="option.text"
                 v-model="selectedAnswers[question.id]"
                 @change="handleChange(question.id, option)"
+                :disabled="isFinished"
                 class="radio-input"
               />
               <span class="radio-custom"></span>
@@ -85,9 +86,9 @@ const options = [
 
 // 将数字答案转换为文本格式
 const getTextAnswer = (numericAnswer) => {
-  if (numericAnswer === 1) return 'TRUE';
-  if (numericAnswer === 0) return 'FALSE';
-  if (numericAnswer === -1) return 'NOT GIVEN';
+  if (numericAnswer === 2) return 'TRUE';
+  if (numericAnswer === 3) return 'FALSE';
+  if (numericAnswer === 1) return 'NOT GIVEN';
   return '';
 };
 
@@ -133,6 +134,9 @@ const extractArticleId = (id) => {
 
 // 处理选项变更
 const handleChange = async (questionId, option) => {
+  // 如果已完成，不允许再选择答案
+  if (props.isFinished) return;
+  
   // 更新本地状态
   selectedAnswers.value[questionId] = option.text;
   

@@ -11,9 +11,16 @@
         <p class="signup-subtitle">{{ $t('signup.subtitle') }}</p>
         
         <form @submit.prevent="handleSignup">
-          <!-- 错误信息显示 -->
-          <div class="error-message" v-if="errorMessage">
-            {{ errorMessage }}
+          
+          <div class="form-group">
+            <label for="email">{{ $t('signup.email') }}</label>
+            <input 
+              id="email" 
+              type="email" 
+              v-model="email" 
+              :placeholder="$t('signup.emailPlaceholder')"
+              required
+            />
           </div>
           
           <div class="form-group">
@@ -28,14 +35,24 @@
           </div>
           
           <div class="form-group">
-            <label for="email">{{ $t('signup.email') }}</label>
-            <input 
-              id="email" 
-              type="email" 
-              v-model="email" 
-              :placeholder="$t('signup.emailPlaceholder')"
-              required
-            />
+            <label for="code">{{ $t('signup.verificationCode') }}</label>
+            <div class="code-input-group">
+              <input 
+                id="code" 
+                type="text" 
+                v-model="code" 
+                :placeholder="$t('signup.codePlaceholder')"
+                required
+              />
+              <button 
+                type="button" 
+                class="send-code-button" 
+                @click="sendVerificationCode"
+                :disabled="codeSending || codeCountdown > 0"
+              >
+                {{ codeButtonText }}
+              </button>
+            </div>
           </div>
           
           <div class="form-group">
@@ -98,43 +115,101 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import message from '@/utils/message';
 import { useUserStore } from '@/stores/user';
 import { useModalStore } from '@/stores/modal';
 import { useRouter } from 'vue-router';
+import { getEmailCode } from '@/api/user';
 
 const { t } = useI18n();
 const userStore = useUserStore();
 const modalStore = useModalStore();
 const router = useRouter();
 
-const username = ref('');
 const email = ref('');
+const username = ref('');
 const password = ref('');
+const code = ref('');
 const showPassword = ref(false);
 const isLoading = ref(false);
 const errorMessage = ref('');
+const codeSending = ref(false);
+const codeCountdown = ref(0);
+const codeButtonText = computed(() => {
+  return codeCountdown.value > 0 ? `${codeCountdown.value}s` : t('signup.sendCode');
+});
 
 const handleSignup = async () => {
   isLoading.value = true;
   errorMessage.value = '';
   
+  if (!email.value || !username.value || !password.value || !code.value) {
+    errorMessage.value = t('signup.fillAllFields');
+    isLoading.value = false;
+    return;
+  }
+  
   const success = await userStore.register({
-    username: username.value,
     email: email.value,
-    password: password.value
+    username: username.value,
+    password: password.value,
+    code: code.value
   });
+  
   isLoading.value = false;
   if (success) {
     modalStore.closeSignupModal();
-    username.value = '';
     email.value = '';
+    username.value = '';
     password.value = '';
+    code.value = '';
   } else {
-    showToast(t('signup.errorMessage'));
+    errorMessage.value = userStore.error || t('signup.errorMessage');
   }
+};
+
+const sendVerificationCode = async () => {
+  if (!email.value) {
+    errorMessage.value = t('signup.emailRequired');
+    return;
+  }
+  
+  try {
+    codeSending.value = true;
+    errorMessage.value = '';
+    
+    // 获取当前时间戳作为参数t
+    const timestamp = new Date().getTime();
+    
+    const response = await getEmailCode({ 
+      email: email.value,
+      type: 'register'
+    });
+    
+    if (response && response.code === 0) {
+      message.success(t('signup.codeSent'));
+      startCodeCountdown();
+    } else {
+      errorMessage.value = response?.msg || t('signup.sendCodeError');
+    }
+  } catch (error) {
+    console.error('发送验证码失败:', error);
+    errorMessage.value = t('signup.sendCodeError');
+  } finally {
+    codeSending.value = false;
+  }
+};
+
+const startCodeCountdown = () => {
+  codeCountdown.value = 60;
+  const timer = setInterval(() => {
+    codeCountdown.value--;
+    if (codeCountdown.value <= 0) {
+      clearInterval(timer);
+    }
+  }, 1000);
 };
 
 const handleGoogleSignup = () => {
@@ -355,5 +430,22 @@ input:focus {
 .form-group {
   margin-bottom: 1.5rem;
   position: relative;
+}
+
+.code-input-group {
+  @apply flex gap-2;
+}
+
+.send-code-button {
+  @apply bg-[#4A99E9] text-white px-3 rounded text-sm whitespace-nowrap flex-shrink-0 transition-all duration-200;
+  min-width: 90px;
+}
+
+.send-code-button:hover:not(:disabled) {
+  @apply bg-[#3a89d9];
+}
+
+.send-code-button:disabled {
+  @apply bg-[#6c757d] cursor-not-allowed opacity-70;
 }
 </style>
