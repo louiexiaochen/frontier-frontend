@@ -187,7 +187,7 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted, watch } from 'vue';
+import { ref, computed, onMounted, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import {
   StarIcon,
@@ -203,10 +203,14 @@ import {
   createUnitProgress,
 } from '@/api/unit';
 import { generateArticle } from '@/api/article';
+import { useReadingStore } from '@/stores/reading';
 
 // ==================== 路由相关 ====================
 const router = useRouter();
 const route = useRoute();
+
+// ==================== 读取存储 ====================
+const readingStore = useReadingStore();
 
 // ==================== 常量定义 ====================
 const CARD_CONFIG = {
@@ -288,6 +292,8 @@ const STORAGE_KEY = 'lastOpenedUnit';
 const saveLastOpenedUnit = (unitId) => {
   try {
     localStorage.setItem(STORAGE_KEY, unitId.toString());
+    // 同时更新到 Pinia store
+    readingStore.setLastUnit(unitId.toString());
   } catch (error) {
     console.error('保存上次打开的单元失败:', error);
   }
@@ -295,6 +301,10 @@ const saveLastOpenedUnit = (unitId) => {
 
 const getLastOpenedUnit = () => {
   try {
+    // 优先从 Pinia store 获取
+    if (readingStore.lastUnitId) {
+      return readingStore.lastUnitId;
+    }
     return localStorage.getItem(STORAGE_KEY);
   } catch (error) {
     console.error('获取上次打开的单元失败:', error);
@@ -318,6 +328,11 @@ const selectUnit = async (unitId) => {
       allLessons.value = formatCoursesData(response.data);
       updateSelectedUnit(unitId);
       console.log('成功加载单元课程:', unitId);
+      
+      // 课程加载完成后，滚动到上次学习的课程
+      nextTick(() => {
+        scrollToLastCourse();
+      });
     }
   } catch (error) {
     console.error('选择单元失败:', error);
@@ -381,10 +396,35 @@ const addNewCourse = (courseData) => {
 const handleLessonClick = async (lesson) => {
   if (lesson.locked) return;
   try {
+    // 保存当前点击的课程ID到 Pinia store
+    readingStore.setLastCourse(lesson.id);
     router.push(`/reading/vocabulary/${lesson.id}`);
   } catch (error) {
     console.error('处理课程点击失败:', error);
     showToast('操作失败，请稍后重试', 'error');
+  }
+};
+
+// 添加滚动到上次学习课程的函数
+const scrollToLastCourse = () => {
+  const lastCourseId = readingStore.lastCourseId;
+  if (!lastCourseId || filteredLessons.value.length === 0) return;
+  
+  // 查找上次学习的课程索引
+  const courseIndex = filteredLessons.value.findIndex(lesson => lesson.id === lastCourseId);
+  if (courseIndex === -1) return;
+  
+  // 计算滚动位置
+  const scrollPosition = courseIndex * (CARD_CONFIG.size + CARD_CONFIG.verticalGap);
+  
+  // 执行滚动
+  const scrollContainer = document.querySelector('.overflow-y-auto');
+  if (scrollContainer) {
+    console.log('滚动到上次学习的课程:', lastCourseId, '位置:', scrollPosition);
+    scrollContainer.scrollTo({
+      top: scrollPosition,
+      behavior: 'smooth'
+    });
   }
 };
 
@@ -442,14 +482,14 @@ const initializeFromRoute = () => {
     return;
   }
   
-  // 如果URL中没有unit参数，尝试从本地存储获取
+  // 如果URL中没有unit参数，尝试从 Pinia store 或本地存储获取
   const lastOpenedUnit = getLastOpenedUnit();
-  console.log('从本地存储获取上次打开的单元:', lastOpenedUnit);
+  console.log('从存储获取上次打开的单元:', lastOpenedUnit);
   
   if (lastOpenedUnit) {
     // 确保单元ID为字符串类型
     const unitId = lastOpenedUnit;
-    console.log('从本地存储初始化单元:', unitId);
+    console.log('从存储初始化单元:', unitId);
     selectUnitIfValid(unitId);
   }
 };
@@ -487,6 +527,11 @@ const selectUnitIfValid = async (unitId) => {
         // 保存到本地存储
         saveLastOpenedUnit(unitId.toString());
         console.log('成功加载单元课程，单元ID:', unitId.toString());
+        
+        // 课程加载完成后，滚动到上次学习的课程
+        nextTick(() => {
+          scrollToLastCourse();
+        });
       }
     } catch (error) {
       console.error('加载单元课程失败:', error);
