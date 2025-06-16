@@ -8,7 +8,7 @@
       <!--Left sidebar-->
       <div class="left-sidebar" :class="{ 'sidebar-visible': sidebarVisible }">
           <div class="sidebar-icon">
-             <home-icon class="icon" @click="$router.push('/')" />
+             <home-icon class="icon" @click="$router.push('/home/reading')" />
              
              <ai-friend-icon class="icon" @click="$router.push('/home/ai-friend')" />
 
