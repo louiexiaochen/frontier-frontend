@@ -1,9 +1,10 @@
 <template>
-  <div class="min-h-screen bg-black text-white w-full relative overflow-hidden">
-    <div class="absolute top-0 left-0 w-full h-full z-0 overflow-hidden">
-      <div class="absolute rounded-full filter blur-[4.5vw] top-[-10%] left-[-10%] w-1/2 h-1/2 bg-gradient-to-br from-blue-500/30 to-blue-800/10 animate-float-slow"></div>
-      <div class="absolute rounded-full filter blur-[4.5vw] bottom-[-15%] right-[-15%] w-3/5 h-3/5 bg-gradient-to-br from-blue-500/20 to-purple-800/10 animate-float-reverse"></div>
-      <div class="absolute top-0 left-0 w-full h-full bg-grid opacity-40"></div>
+  <div class="min-h-screen text-white w-full relative overflow-hidden" style="background-color: #000000;">
+    <!-- 大LOGO背景 -->
+    <div class="absolute top-9 left-0 w-full h-full z-0 flex items-center justify-center select-none pointer-events-none">
+      <div class="w-[90vw] h-[90vh] max-w-[1000px] max-h-[1000px] opacity-60 flex items-center justify-center select-none pointer-events-none">
+        <Logo />
+      </div>
     </div>
     
     <div class="w-[85%] max-w-[1600px] mx-auto py-[2%] px-[2%] box-border relative z-10">
@@ -64,24 +65,21 @@
               </div>
             </div>
           </template>
-          
-          <!-- 添加语言切换组件 - 移到最右侧 -->
-          <LanguageSwitcher />
         </div>
       </header>
 
       <!-- 主内容区域 -->
-      <main class="flex flex-col items-center justify-center text-center mt-[clamp(5rem,15vh,15rem)] px-[5%] box-border w-full relative">
-        <h1 class="text-[clamp(3rem,8vw,12rem)] font-bold mb-[clamp(1rem,2vh,3rem)] w-full break-words bg-gradient-to-r from-white to-blue-500 bg-clip-text text-transparent leading-tight">
-          {{ $t('landing.title') }}
+      <main class="flex flex-col items-center justify-center text-center mt-[clamp(10rem,24vh,24rem)] px-[5%] box-border w-full relative">
+        <h1 class="text-[clamp(2.5rem,6.5vw,8rem)] font-bold mb-[clamp(2rem,4vh,6rem)] w-full break-words text-white leading-tight">
+          AI重塑你的英语学习
         </h1>
-        <p class="text-[clamp(1rem,1.5vw,2.2rem)] mb-[clamp(1.5rem,4vh,4rem)] max-w-[60%] w-full break-words">
+        <p class="text-[clamp(1.2rem,1.5vw,2.2rem)] mb-[clamp(1.5rem,4vh,4rem)] max-w-[60%] w-full break-words">
           {{ $t('landing.subtitle') }}
         </p>
-        <button 
-          @click="$router.push('/reading')" 
-          class="mt-10 bg-gradient-to-r from-white to-gray-200 text-black py-[clamp(0.7rem,1vh,1.2rem)] px-[clamp(2rem,3vw,4rem)] text-[clamp(1rem,1.2vw,1.8rem)] font-bold rounded-full border-none transition-all duration-300 cursor-pointer relative overflow-hidden shadow-blue-500/20 shadow-lg hover:opacity-90 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/30 active:translate-y-0 active:shadow-md active:shadow-blue-500/20"
-        >
+                  <button 
+            @click="$router.push('/reading')" 
+            class="mt-5 bg-gradient-to-r from-white to-gray-200 text-black py-[clamp(0.7rem,2vh,1.2rem)] px-[clamp(2rem,4vw,4rem)] text-[clamp(1rem,1.2vw,1.8rem)] font-bold rounded-[20px] border-none transition-all duration-300 cursor-pointer relative overflow-hidden shadow-blue-500/20 shadow-lg hover:opacity-90 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-blue-500/30 active:translate-y-0 active:shadow-md active:shadow-blue-500/20"
+          >
           {{ $t('landing.startButton') }}
         </button>
       </main>
@@ -101,7 +99,6 @@ import { onMounted, ref, onBeforeUnmount } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Logo from '../components/icons/Logo.vue';
 import SignupModal from '../components/SignupModal.vue';
-import LanguageSwitcher from '../components/utils/LanguageSwitcher.vue';
 import { useUserStore } from '@/stores/user';
 import { useModalStore } from '@/stores/modal';
 import message from '@/utils/message';
@@ -167,28 +164,18 @@ onBeforeUnmount(() => {
 </script>
 
 <style>
-@keyframes float {
-  0% {
-    transform: translate(0, 0);
-  }
-  100% {
-    transform: translate(5%, 5%);
-  }
+/* 防止背景LOGO被选中和复制 */
+.select-none {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.animate-float-slow {
-  animation: float 15s ease-in-out infinite alternate;
-}
-
-.animate-float-reverse {
-  animation: float 20s ease-in-out infinite alternate-reverse;
-}
-
-.bg-grid {
-  background-image: 
-    linear-gradient(to right, rgba(48, 51, 54, 0.1) 1px, transparent 1px),
-    linear-gradient(to bottom, rgba(48, 51, 54, 0.1) 1px, transparent 1px);
-  background-size: 1.5vw 1.5vw;
+.pointer-events-none {
+  pointer-events: none;
 }
 
 /* 媒体查询 */
@@ -220,10 +207,6 @@ onBeforeUnmount(() => {
   .w-\[85\%\] {
     width: 65%;
     max-width: 2200px;
-  }
-  
-  .bg-grid {
-    background-size: 2vw 2vw;
   }
 }
 </style>
