@@ -86,11 +86,15 @@ import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { getArticleDetail, submitArticleAnswers, regenerateArticle } from '@/api/article';
 import { normalizeQuestionType } from '@/utils/answerUtils';
+import { useModalStore } from '@/stores/modal';
 
 // 导入拆分后的组件
 import ArticleSection from '../components/essay/ArticleSection.vue';
 import Resizer from '../components/essay/Resizer.vue';
 import QuestionsSection from '../components/essay/QuestionsSection.vue';
+
+// 获取 modal store
+const modalStore = useModalStore();
 
 // 文章状态常量
 const ARTICLE_STATUS = {
@@ -513,6 +517,8 @@ watch(() => route.path, (newPath, oldPath) => {
 // 页面加载时初始化
 onMounted(() => {
   isComponentMounted.value = true;
+  // 自动收缩侧边栏
+  modalStore.setSidebarVisible(false);
   // 从后端加载文章和问题数据
   fetchEssayData();
 });

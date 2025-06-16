@@ -36,7 +36,6 @@
       <div 
         v-if="sidebarVisible" 
         class="sidebar-overlay"
-        @click="closeSidebar"
       ></div>
 
       <!--Main content-->
@@ -74,9 +73,10 @@
 </template>
 
 <script setup>
-import { ref, computed, provide } from 'vue';
+import { ref, computed, provide, watch } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { useUserStore } from '@/stores/user';
+import { useModalStore } from '@/stores/modal';
 import {
 HomeIcon,
 AiFriendIcon,
@@ -90,6 +90,7 @@ import SidebarToggle from '../components/icons/SidebarToggle.vue';
 const router = useRouter();
 const route = useRoute();
 const userStore = useUserStore();
+const modalStore = useModalStore();
 
 const tabs = ref([
 { name: 'Reading', path: '/home/reading' },
@@ -117,29 +118,23 @@ const navigateToProfile = () => {
   router.push('/home/profile');
 };
 
-// 侧边栏可见性状态
-const sidebarVisible = ref(true); // 默认显示侧边栏
+// 侧边栏可见性状态，从 modalStore 获取
+const sidebarVisible = computed({
+  get: () => modalStore.sidebarVisible,
+  set: (value) => modalStore.setSidebarVisible(value)
+});
 
 // 提供侧边栏状态给子组件
 provide('sidebarVisible', sidebarVisible);
 
-// 切换侧边栏函数
+// 切换侧边栏函数 - 只在点击 sidebar-toggle-wrapper 时调用
 const toggleSidebar = () => {
   sidebarVisible.value = !sidebarVisible.value;
 };
 
-// 关闭侧边栏函数
-const closeSidebar = () => {
-  sidebarVisible.value = false;
-};
-
-// 处理主内容区域的点击
-const handleContentClick = (event) => {
-  // 如果点击的不是切换按钮且侧边栏可见，则关闭侧边栏
-  const isToggleButton = event.target.closest('.sidebar-toggle-icon');
-  if (!isToggleButton && sidebarVisible.value) {
-    closeSidebar();
-  }
+// 处理主内容区域的点击 - 移除自动关闭侧边栏的逻辑
+const handleContentClick = () => {
+  // 不再自动关闭侧边栏
 };
 </script>
 

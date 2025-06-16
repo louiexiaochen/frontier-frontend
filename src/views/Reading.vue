@@ -203,14 +203,14 @@ import {
   createUnitProgress,
 } from '@/api/unit';
 import { generateArticle } from '@/api/article';
-import { useReadingStore } from '@/stores/reading';
+import { useModalStore } from '@/stores/modal';
 
 // ==================== 路由相关 ====================
 const router = useRouter();
 const route = useRoute();
 
 // ==================== 读取存储 ====================
-const readingStore = useReadingStore();
+const modalStore = useModalStore();
 
 // ==================== 常量定义 ====================
 const CARD_CONFIG = {
@@ -292,8 +292,8 @@ const STORAGE_KEY = 'lastOpenedUnit';
 const saveLastOpenedUnit = (unitId) => {
   try {
     localStorage.setItem(STORAGE_KEY, unitId.toString());
-    // 同时更新到 Pinia store
-    readingStore.setLastUnit(unitId.toString());
+    // 同时更新到 modalStore
+    modalStore.setLastUnit(unitId.toString());
   } catch (error) {
     console.error('保存上次打开的单元失败:', error);
   }
@@ -301,9 +301,9 @@ const saveLastOpenedUnit = (unitId) => {
 
 const getLastOpenedUnit = () => {
   try {
-    // 优先从 Pinia store 获取
-    if (readingStore.lastUnitId) {
-      return readingStore.lastUnitId;
+    // 优先从 modalStore 获取
+    if (modalStore.lastUnitId) {
+      return modalStore.lastUnitId;
     }
     return localStorage.getItem(STORAGE_KEY);
   } catch (error) {
@@ -396,8 +396,8 @@ const addNewCourse = (courseData) => {
 const handleLessonClick = async (lesson) => {
   if (lesson.locked) return;
   try {
-    // 保存当前点击的课程ID到 Pinia store
-    readingStore.setLastCourse(lesson.id);
+    // 保存当前点击的课程ID到 modalStore
+    modalStore.setLastCourse(lesson.id);
     router.push(`/reading/vocabulary/${lesson.id}`);
   } catch (error) {
     console.error('处理课程点击失败:', error);
@@ -407,7 +407,7 @@ const handleLessonClick = async (lesson) => {
 
 // 添加滚动到上次学习课程的函数
 const scrollToLastCourse = () => {
-  const lastCourseId = readingStore.lastCourseId;
+  const lastCourseId = modalStore.lastCourseId;
   if (!lastCourseId || filteredLessons.value.length === 0) return;
   
   // 查找上次学习的课程索引
@@ -482,7 +482,7 @@ const initializeFromRoute = () => {
     return;
   }
   
-  // 如果URL中没有unit参数，尝试从 Pinia store 或本地存储获取
+  // 如果URL中没有unit参数，尝试从 modalStore 或本地存储获取
   const lastOpenedUnit = getLastOpenedUnit();
   console.log('从存储获取上次打开的单元:', lastOpenedUnit);
   

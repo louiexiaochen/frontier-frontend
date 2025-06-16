@@ -181,7 +181,7 @@ import { useRouter, useRoute } from 'vue-router';
 import BackIcon from '../components/icons/BackIcon.vue';
 import EnglishPronunciationButton from '../components/icons/EnglishPronunciationButton.vue';
 import { getCourseWords, updateWordStatus, completeCourse } from '@/api/readings';
-import { useReadingStore } from '@/stores/reading';
+import { useModalStore } from '@/stores/modal';
 
 // ==================== 常量定义 ====================
 const WORD_STATUS = {
@@ -195,7 +195,7 @@ const WORD_STATUS = {
 const router = useRouter();
 const route = useRoute();
 const lessonId = computed(() => route.params.id || '未知课程');
-const readingStore = useReadingStore();
+const modalStore = useModalStore();
 
 const wordData = reactive({
   knownQueue: [],
@@ -434,9 +434,9 @@ onMounted(() => {
     window.speechSynthesis.getVoices();
   }
   
-  // 保存当前课程 ID 到 Pinia store
+  // 保存当前课程 ID 到 modalStore
   if (route.params.id) {
-    readingStore.setLastCourse(route.params.id);
+    modalStore.setLastCourse(route.params.id);
   }
   
   wordLearning.loadWordData();
