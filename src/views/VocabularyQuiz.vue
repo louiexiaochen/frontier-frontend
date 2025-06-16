@@ -9,41 +9,41 @@
 
     <!-- 主要内容区域 -->
     <div class="flex flex-col relative z-10 h-full">
-      <div class="flex-1 flex flex-col px-6 pt-6 mx-auto w-full h-full max-h-screen">
+      <div class="flex-1 flex flex-col px-6 pt-6 mx-auto w-full h-full max-h-screen relative">
         <!-- 进度条和返回按钮 -->
-        <div class="flex items-center mb-4 gap-4">
+        <div class="flex items-center mb-8 gap-4">
           <button 
-            class="border-none rounded-full w-8 h-8 flex items-center justify-center cursor-pointer transition-colors duration-200" 
+            class="border-none rounded-full w-10 h-10 flex items-center justify-center cursor-pointer transition-colors duration-200" 
             @click="navigation.handleBack"
           >
-            <BackIcon :size="10" />
+            <BackIcon :size="20" class="text-white" />
           </button>
-          <div class="flex-1">
-            <div class="h-4 bg-white/10 rounded overflow-hidden mr-10">
-              <div class="progress-fill" :style="ui.progressStyle">
-                <span class="text-xl pr-2 text-black">{{ ui.progressText }}</span>
+          <div class="flex-1 flex justify-center">
+            <div class="w-[80%] h-10 bg-white rounded-full overflow-hidden">
+              <div class="progress-fill h-full" :style="ui.progressStyle">
+                <span class="text-xl font-bold pr-4 text-black">{{ ui.progressText }}</span>
               </div>
             </div>
           </div>
         </div>
 
         <!-- 滚动内容区域 -->
-        <div class="flex-1 overflow-y-auto custom-scrollbar w-[100%] m-auto pb-20">
+        <div class="flex-1 overflow-y-auto custom-scrollbar w-full m-auto pb-28">
           <div class="flex-1 flex flex-col justify-between gap-8 will-change-transform pb-4 max-w-[800px] m-auto">
             <!-- 单词展示区域 -->
             <div v-if="wordData.currentWord" class="text-center animate-fadeIn">
-              <h1 class="text-4xl font-bold mb-2 bg-gradient-to-r from-[#4A99E9] to-[#5C2797] bg-clip-text text-transparent will-change-transform leading-relaxed py-2">
+              <h1 class="text-5xl font-bold mb-2 text-white will-change-transform leading-relaxed py-2">
                 {{ wordData.currentWord.content }}
               </h1>
               <div class="flex items-center justify-center gap-2 mb-4">
                 <EnglishPronunciationButton @click="speech.playPronunciation" />
                 <div class="text-lg text-white/70">{{ wordData.currentWord.phonetic }}</div>
               </div>
-              <div v-if="!ui.showDefinition" class="flex flex-col items-center gap-2 my-4">
+              <div v-if="!ui.showDefinition" class="flex flex-col items-center gap-2 my-8">
                 <div class="w-20 h-0.5 bg-white/30"></div>
                 <div class="w-12 h-0.5 bg-white/30"></div>
               </div>
-              <div v-else class="text-2xl text-white/90 my-4 animate-fadeIn">
+              <div v-else class="text-2xl text-white/90 my-8 animate-fadeIn">
                 {{ wordData.currentWord.definition }}
               </div>
             </div>
@@ -56,16 +56,16 @@
               <!-- 例句区域 -->
               <div 
                 v-if="wordData.currentWord?.example?.text"
-                class="bg-white/5 rounded-lg p-6 mb-4 will-change-transform cursor-pointer" 
+                class="bg-white rounded-[20px] p-6 mb-4 will-change-transform cursor-pointer" 
                 @click="speech.playExampleSentence"
               >
                 <p 
-                  class="text-lg leading-relaxed mb-2" 
+                  class="text-lg leading-relaxed mb-2 text-black" 
                   v-html="wordData.highlightedExample"
                 ></p>
                 <p 
                   v-if="ui.showDefinition && wordData.currentWord?.example?.translation" 
-                  class="text-base text-white/70 animate-fadeIn"
+                  class="text-base text-black/70 animate-fadeIn"
                 >
                   {{ wordData.currentWord.example.translation }}
                 </p>
@@ -74,28 +74,28 @@
               <!-- 相关单词区域 -->
               <div 
                 v-if="ui.showDefinition && hasRelatedWords" 
-                class="bg-white/5 rounded-lg p-6 animate-fadeIn will-change-transform"
+                class="bg-white rounded-[20px] p-6 animate-fadeIn will-change-transform"
               >
                 <div class="flex flex-col gap-4">
                   <div 
                     v-for="(relatedWord, index) in wordData.currentWord.relatedWords" 
                     :key="index" 
-                    class="border-b border-white/10 pb-3 last:border-b-0 last:pb-0"
+                    class="border-b border-black/10 pb-3 last:border-b-0 last:pb-0"
                   >
                     <div class="flex items-center gap-2 mb-1">
                       <span 
-                        class="font-semibold text-[#4A99E9] cursor-pointer" 
+                        class="font-semibold text-blue-500 cursor-pointer" 
                         @click="() => speech.playRelatedWord(relatedWord.word)"
                       >
                         {{ relatedWord.word }}
                       </span>
-                      <span v-if="relatedWord.partOfSpeech" class="text-sm text-white/60">{{ relatedWord.partOfSpeech }}</span>
+                      <span v-if="relatedWord.partOfSpeech" class="text-sm text-black/60">{{ relatedWord.partOfSpeech }}</span>
                     </div>
-                    <div v-if="relatedWord.definition" class="text-[0.95rem] text-white/80">{{ relatedWord.definition }}</div>
+                    <div v-if="relatedWord.definition" class="text-[0.95rem] text-black/80">{{ relatedWord.definition }}</div>
                   </div>
                 </div>
                 <div v-if="wordData.currentWord.wordFamily" class="mt-4 text-right">
-                  <span class="inline-block bg-[rgba(92,39,151,0.3)] px-3 py-1 rounded-full text-sm">
+                  <span class="inline-block bg-[rgba(92,39,151,0.3)] px-3 py-1 rounded-full text-sm text-black">
                     {{ wordData.currentWord.wordFamily }}
                   </span>
                 </div>
@@ -104,7 +104,7 @@
               <!-- 空内容提示 -->
               <div 
                 v-if="ui.showDefinition && !hasExampleOrRelatedWords" 
-                class="bg-white/5 rounded-lg p-6 text-center text-white/50"
+                class="bg-white/5 rounded-[20px] p-6 text-center text-white/50"
               >
                 暂无更多补充内容
               </div>
@@ -112,63 +112,71 @@
           </div>
         </div>
 
-        <!-- 底部按钮区域 - 修改为固定定位 -->
-        <div class="fixed bottom-0 left-0 right-0 flex gap-4 justify-center py-4 px-6 bg-black/80 backdrop-blur-sm z-20">
-          <!-- 未显示释义时的按钮 -->
-          <template v-if="wordData.currentWord && !ui.showDefinition">
-            <button 
-              class="flex-1 py-4 border-none rounded-lg bg-green-500/20 hover:bg-green-500/30 text-white font-semibold text-lg transition-all duration-300" 
-              @click="() => wordLearning.handleResponse('know')"
-            >
-              认识
-            </button>
-            <button 
-              class="flex-1 py-4 border-none rounded-lg bg-yellow-500/20 hover:bg-yellow-500/30 text-white font-semibold text-lg transition-all duration-300" 
-              @click="() => wordLearning.handleResponse('fuzzy')"
-            >
-              模糊
-            </button>
-            <button 
-              class="flex-1 py-4 border-none rounded-lg bg-red-500/20 hover:bg-red-500/30 text-white font-semibold text-lg transition-all duration-300" 
-              @click="() => wordLearning.handleResponse('unknown')"
-            >
-              不认识
-            </button>
-          </template>
-          
-          <!-- 显示释义且不是最后一个单词时的按钮 -->
-          <template v-else-if="wordData.currentWord && ui.showDefinition">
-            <button 
-              class="flex-1 py-4 border-none rounded-lg bg-blue-500/20 hover:bg-blue-500/30 text-white font-semibold text-lg transition-all duration-300" 
-              @click="wordLearning.handleNextWord"
-            >
-              下一词
-            </button>
-            <button 
-              class="flex-1 py-4 border-none rounded-lg bg-red-500/20 hover:bg-red-500/30 text-white font-semibold text-lg transition-all duration-300" 
-              @click="wordLearning.handleWrong"
-            >
-              记错了
-            </button>
-          </template>
-          
-          <!-- 学习完成时的按钮 -->
-          <template v-else>
-            <button 
-              class="flex-1 py-4 border-none rounded-lg bg-gradient-to-r from-blue-500 to-purple-800 text-white font-semibold text-lg transition-all duration-300 hover:opacity-90 active:opacity-80"
-              @click="navigation.generateEssay"
-            >
-              <div class="flex items-center justify-center gap-2">
-                <span>生成AI文章</span>
+        <!-- 底部按钮区域 -->
+        <div class="absolute bottom-0 left-0 right-0 flex justify-center py-6 px-6 bg-black z-20 w-full">
+          <div class="w-full max-w-[800px] m-auto">
+            <!-- 未显示释义时的按钮 -->
+            <template v-if="wordData.currentWord && !ui.showDefinition">
+              <div class="grid grid-cols-3 gap-4">
+                <button 
+                  class="pt-3 pb-2 border-none text-white font-semibold text-lg transition-all duration-300 bottom-line-green" 
+                  @click="() => wordLearning.handleResponse('know')"
+                >
+                  认识
+                </button>
+                <button 
+                  class="pt-3 pb-2 border-none text-white font-semibold text-lg transition-all duration-300 bottom-line-yellow" 
+                  @click="() => wordLearning.handleResponse('fuzzy')"
+                >
+                  模糊
+                </button>
+                <button 
+                  class="pt-3 pb-2 border-none text-white font-semibold text-lg transition-all duration-300 bottom-line-red" 
+                  @click="() => wordLearning.handleResponse('unknown')"
+                >
+                  不认识
+                </button>
               </div>
-            </button>
-            <button 
-              class="flex-1 py-4 border-none rounded-lg bg-[#333] text-white font-semibold text-lg transition-all duration-300 hover:bg-[#444] active:bg-[#555]" 
-              @click="navigation.handleBack"
-            >
-              退出学习
-            </button>
-          </template>
+            </template>
+            
+            <!-- 显示释义且不是最后一个单词时的按钮 -->
+            <template v-else-if="wordData.currentWord && ui.showDefinition">
+              <div class="grid grid-cols-2 gap-4">
+                <button 
+                  class="pt-3 pb-2 border-none text-white font-semibold text-lg transition-all duration-300 bottom-line-blue" 
+                  @click="wordLearning.handleNextWord"
+                >
+                  下一词
+                </button>
+                <button 
+                  class="pt-3 pb-2 border-none text-white font-semibold text-lg transition-all duration-300 bottom-line-red" 
+                  @click="wordLearning.handleWrong"
+                >
+                  记错了
+                </button>
+              </div>
+            </template>
+            
+            <!-- 学习完成时的按钮 -->
+            <template v-else>
+              <div class="grid grid-cols-2 gap-4">
+                <button 
+                  class="pt-3 pb-2 border-none text-white font-semibold text-lg transition-all duration-300 bottom-line-blue" 
+                  @click="navigation.generateEssay"
+                >
+                  <div class="flex items-center justify-center gap-2">
+                    <span>生成AI文章</span>
+                  </div>
+                </button>
+                <button 
+                  class="pt-3 pb-2 border-none text-white font-semibold text-lg transition-all duration-300 bottom-line-gray" 
+                  @click="navigation.handleBack"
+                >
+                  退出学习
+                </button>
+              </div>
+            </template>
+          </div>
         </div>
       </div>
     </div>
@@ -572,18 +580,98 @@ const sessionProgress = reactive({
 
 /* 进度条样式 */
 .progress-fill {
-  height: 100%;
-  background: linear-gradient(90deg, #4A99E9 0%, #5C2797 100%);
-  border-radius: 4rem;
+  background: white;
+  border-radius: 999px;
   transition: width 0.3s ease;
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  
-  span {
-    margin-right: 10px;
-    font-weight: bold;
-  }
+}
+
+.progress-fill span {
+  margin-right: 10px;
+  font-weight: bold;
+}
+
+/* 底部按钮线条样式 */
+.bottom-line-green {
+  position: relative;
+}
+
+.bottom-line-green::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  background-color: #4CAF50;
+  border-radius: 1.5px;
+}
+
+.bottom-line-yellow {
+  position: relative;
+}
+
+.bottom-line-yellow::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  background-color: #FFC107;
+  border-radius: 1.5px;
+}
+
+.bottom-line-red {
+  position: relative;
+}
+
+.bottom-line-red::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  background-color: #F44336;
+  border-radius: 1.5px;
+}
+
+.bottom-line-blue {
+  position: relative;
+}
+
+.bottom-line-blue::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  background-color: #2196F3;
+  border-radius: 1.5px;
+}
+
+.bottom-line-gray {
+  position: relative;
+}
+
+.bottom-line-gray::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 24px;
+  height: 3px;
+  background-color: #333;
+  border-radius: 1.5px;
 }
 
 /* 动画效果 */
@@ -603,13 +691,13 @@ const sessionProgress = reactive({
 }
 
 /* 确保内容区域不被底部按钮遮挡 */
-.pb-20 {
-  padding-bottom: 5rem !important;
+.pb-28 {
+  padding-bottom: 7rem !important;
 }
 
-/* 底部按钮区域样式 */
-.backdrop-blur-sm {
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+/* 高亮例句中的单词 */
+:deep(span.text-\[#4A99E9\]) {
+  color: #4A99E9;
+  font-weight: bold;
 }
 </style>
