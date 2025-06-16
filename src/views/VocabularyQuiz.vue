@@ -11,7 +11,7 @@
     <div class="flex flex-col relative z-10 h-full">
       <div class="flex-1 flex flex-col px-6 pt-6 mx-auto w-full h-full max-h-screen relative">
         <!-- 进度条和返回按钮 -->
-        <div class="flex items-center mb-8 gap-4">
+        <div class="flex items-center mb-8 gap-4 mx-10">
           <button 
             class="border-none rounded-full w-10 h-10 flex items-center justify-center cursor-pointer transition-colors duration-200" 
             @click="navigation.handleBack"
@@ -19,10 +19,9 @@
             <BackIcon :size="20" class="text-white" />
           </button>
           <div class="flex-1 flex justify-center">
-            <div class="w-[80%] h-10 bg-white rounded-full overflow-hidden">
-              <div class="progress-fill h-full" :style="ui.progressStyle">
-                <span class="text-xl font-bold pr-4 text-black">{{ ui.progressText }}</span>
-              </div>
+            <div class="w-[80%] h-10 bg-black border border-white/20 rounded-full overflow-hidden relative">
+              <div class="h-full bg-white rounded-full" :style="ui.progressStyle"></div>
+              <span class="text-xl font-bold text-black absolute left-4 top-1/2 transform -translate-y-1/2">{{ ui.progressText }}</span>
             </div>
           </div>
         </div>
@@ -31,15 +30,15 @@
         <div class="flex-1 overflow-y-auto custom-scrollbar w-full m-auto pb-28">
           <div class="flex-1 flex flex-col justify-between gap-8 will-change-transform pb-4 max-w-[800px] m-auto">
             <!-- 单词展示区域 -->
-            <div v-if="wordData.currentWord" class="text-center animate-fadeIn">
-              <h1 class="text-5xl font-bold mb-2 text-white will-change-transform leading-relaxed py-2">
+            <div v-if="wordData.currentWord" class="text-left animate-fadeIn">
+              <h1 class="text-4xl font-bold text-white will-change-transform leading-relaxed">
                 {{ wordData.currentWord.content }}
               </h1>
-              <div class="flex items-center justify-center gap-2 mb-4">
+              <div class="flex items-center justify-start gap-2">
                 <EnglishPronunciationButton @click="speech.playPronunciation" />
                 <div class="text-lg text-white/70">{{ wordData.currentWord.phonetic }}</div>
               </div>
-              <div v-if="!ui.showDefinition" class="flex flex-col items-center gap-2 my-8">
+              <div v-if="!ui.showDefinition" class="flex flex-col items-start gap-2 my-8">
                 <div class="w-20 h-0.5 bg-white/30"></div>
                 <div class="w-12 h-0.5 bg-white/30"></div>
               </div>
@@ -113,7 +112,7 @@
         </div>
 
         <!-- 底部按钮区域 -->
-        <div class="absolute bottom-0 left-0 right-0 flex justify-center py-6 px-6 bg-black z-20 w-full">
+        <div class="absolute bottom-0 left-0 right-0 flex justify-center py-6 px-6 z-20 w-full">
           <div class="w-full max-w-[800px] m-auto">
             <!-- 未显示释义时的按钮 -->
             <template v-if="wordData.currentWord && !ui.showDefinition">
@@ -579,18 +578,13 @@ const sessionProgress = reactive({
 }
 
 /* 进度条样式 */
-.progress-fill {
+.bg-white {
   background: white;
-  border-radius: 999px;
-  transition: width 0.3s ease;
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
+  transition: width 0.5s ease-out;
 }
 
-.progress-fill span {
-  margin-right: 10px;
-  font-weight: bold;
+.rounded-full {
+  border-radius: 999px;
 }
 
 /* 底部按钮线条样式 */
